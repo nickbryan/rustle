@@ -13,6 +13,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
-      - run: npm install
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: cd rustle_webui
+      - run: npm install # is this actually needed?
       - run: npm run build
       - run: ls
