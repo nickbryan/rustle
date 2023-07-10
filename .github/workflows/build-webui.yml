@@ -32,4 +32,3 @@ jobs:
           destination-github-username: 'nickbryan'
           destination-repository-name: 'nickbryan.co.uk'
           target-directory: 'static/rustle'
-          commit-message: ${{ github.event.head_commit.message }}
