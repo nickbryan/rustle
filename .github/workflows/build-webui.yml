@@ -16,20 +16,19 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
-        with:
-          node-version: 20
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - run: npm install # is this actually needed?
-      - run: npm run build
-      - run: ls
-      - name: Pushes to another repository
+      - name: Install Dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Push to website
         uses: cpina/github-action-push-to-another-repository@main
         env:
           SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
         with:
-          source-directory: 'dist'
+          source-directory: 'rustle_webui/dist'
           destination-github-username: 'nickbryan'
           destination-repository-name: 'nickbryan.co.uk'
           target-directory: 'static/rustle'
