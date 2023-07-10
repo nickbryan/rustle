@@ -24,3 +24,13 @@ jobs:
       - run: npm install # is this actually needed?
       - run: npm run build
       - run: ls
+      - name: Pushes to another repository
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+        with:
+          source-directory: 'dist'
+          destination-github-username: 'nickbryan'
+          destination-repository-name: 'nickbryan.co.uk'
+          target-directory: 'static/rustle'
+          commit-message: ${{ github.event.head_commit.message }}
