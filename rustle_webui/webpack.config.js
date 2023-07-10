@@ -5,6 +5,9 @@ const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
 const dist = path.resolve(__dirname, "dist");
 
 module.exports = {
+  experiments: {
+    syncWebAssembly: true
+  },
   mode: "production",
   entry: {
     index: "./js/index.js"
@@ -17,9 +20,9 @@ module.exports = {
     contentBase: dist,
   },
   plugins: [
-    new CopyPlugin([
-      path.resolve(__dirname, "static")
-    ]),
+    new CopyPlugin({
+      patterns: [path.resolve(__dirname, "static")],
+    }),
 
     new WasmPackPlugin({
       crateDirectory: __dirname,
