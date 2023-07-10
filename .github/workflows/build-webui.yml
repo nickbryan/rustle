@@ -1,0 +1,18 @@
+name: Build WebUI
+on:
+  workflow_run:
+    workflows: ["Test All"]
+    branches: [main]
+    types:
+      - completed
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+      - run: npm install
+      - run: npm run build
+      - run: ls
