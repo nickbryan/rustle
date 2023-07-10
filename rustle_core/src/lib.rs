@@ -1,3 +1,7 @@
+pub fn write_message() -> String {
+    String::from("Testing 1...2...3...")
+}
+
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }

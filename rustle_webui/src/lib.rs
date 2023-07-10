@@ -42,7 +42,7 @@ pub fn main_js() -> Result<(), JsValue> {
             .unwrap(),
     );
 
-    terminal.write(String::from("Hello World, the deploy works!"));
+    terminal.write(rustle_core::write_message());
 
     Ok(())
 }

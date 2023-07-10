@@ -112,6 +112,7 @@ dependencies = [
  "console_error_panic_hook",
  "futures",
  "js-sys",
+ "rustle_core",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
