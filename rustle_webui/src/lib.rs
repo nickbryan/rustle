@@ -1,7 +1,6 @@
 use wasm_bindgen::prelude::*;
 use web_sys::Element;
 
-
 // When the `wee_alloc` feature is enabled, this uses `wee_alloc` as the global
 // allocator.
 //
@@ -36,11 +35,11 @@ pub fn main_js() -> Result<(), JsValue> {
 
     terminal.open(
         web_sys::window()
-        .unwrap()
-        .document()
-        .unwrap()
-        .get_element_by_id("terminal")
-        .unwrap()
+            .unwrap()
+            .document()
+            .unwrap()
+            .get_element_by_id("terminal")
+            .unwrap(),
     );
 
     terminal.write(String::from("Hello World!"));
