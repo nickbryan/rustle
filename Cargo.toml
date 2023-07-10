@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+    "rustle_core",
+    "rustle_tui",
+    "rustle_webui"
+]

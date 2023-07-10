@@ -1,0 +1,8 @@
+#### General ####
+.DS_Store
+.idea
+
+#### Rust ####
+debug/
+target/
+**/*.rs.bk
