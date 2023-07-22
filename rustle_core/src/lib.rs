@@ -1,18 +1,7 @@
-pub fn write_message() -> String {
-    String::from("Testing 1...2...3...")
-}
+#![warn(clippy::all, clippy::pedantic)]
 
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+mod editor;
+mod input;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use editor::Editor;
+pub use input::{Event, EventStream, Key};

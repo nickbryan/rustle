@@ -10,14 +10,14 @@ module.exports = {
   },
   mode: "production",
   entry: {
-    index: "./js/index.js"
+    index: "./js/index.js",
   },
   output: {
     path: dist,
-    filename: "[name].js"
+    filename: "[name].js",
   },
   devServer: {
-    contentBase: dist,
+    static: dist,
   },
   plugins: [
     new CopyPlugin({
