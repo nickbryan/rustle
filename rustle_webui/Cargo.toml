@@ -15,6 +15,7 @@ lto = true
 default = ["wee_alloc"]
 
 [dependencies]
+anyhow = "1"
 rustle_core = { version = "0.1", path = "../rustle_core" }
 tokio = "1"
 tokio-stream = "0.1"
