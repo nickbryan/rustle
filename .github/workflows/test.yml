@@ -41,6 +41,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
+#          args: -- -D warnings # Allow lints to pass for now
   test:
     name: Test
     runs-on: ubuntu-latest
