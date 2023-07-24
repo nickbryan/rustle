@@ -82,7 +82,7 @@ impl Cell {
 
 /// Raised by the Buffer when trying to access a cell that is out of bounds.
 #[derive(Error, Debug)]
-#[error("index out of bounds")]
+#[error("trying to access index out of bounds")]
 pub struct OutOfBoundsError;
 
 /// A mapping of Cells for a given area.
@@ -211,7 +211,7 @@ impl<'a, C: Canvas> Viewport<'a, C> {
     pub fn new(canvas: &'a mut C) -> Result<Self> {
         use anyhow::Context;
 
-        let area = canvas.size().context("setting Viewport area")?;
+        let area = canvas.size().context("unable to set Viewport area")?;
 
         Ok(Self {
             area,
@@ -234,7 +234,7 @@ impl<'a, C: Canvas> Viewport<'a, C> {
 
         self.canvas
             .hide_cursor()
-            .context("hiding cursor pre draw")?;
+            .context("unable to hide cursor pre draw")?;
 
         view.render_to(&mut self.frames[self.current_frame_idx]);
 
@@ -245,17 +245,19 @@ impl<'a, C: Canvas> Viewport<'a, C> {
 
         self.canvas
             .draw(changes.into_iter())
-            .context("drawing buffer diff")?;
+            .context("unable to draw buffer diff")?;
 
         self.canvas
             .position_cursor(next_cursor_pos.row, next_cursor_pos.col)
-            .context("setting cursor position for next frame render")?;
+            .context("unable to set cursor position for next frame render")?;
 
-        self.canvas.show_cursor().context("showing cursor")?;
+        self.canvas
+            .show_cursor()
+            .context("unable to show cursor post draw")?;
 
         self.swap_buffers();
 
-        self.canvas.flush().context("flushing canvas")
+        self.canvas.flush().context("unable to flush canvas")
     }
 
     fn swap_buffers(&mut self) {

@@ -1,3 +1,4 @@
+use crate::mode::Mode;
 use std::fmt;
 
 /// `Message` is an enum that captures all messages that the `Editor` and its `Component`s
@@ -7,6 +8,8 @@ pub enum Message {
     AbortCommandLineInput,
     EndCommandLineInput,
     ParseCommandLineInput(String),
+
+    EnterMode(Mode),
 
     InsertChar(char),
     InsertLineBreak,

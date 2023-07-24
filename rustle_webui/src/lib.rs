@@ -2,6 +2,7 @@
 
 use rustle_core::ui::Rect;
 use rustle_core::{Canvas, Cell, Editor, Event, Key};
+use std::io;
 use std::io::{Error as IoError, Write};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
@@ -23,6 +24,18 @@ extern "C" {
     fn log(s: &str);
 }
 
+#[wasm_bindgen(module = "xterm-addon-fit")]
+extern "C" {
+    #[wasm_bindgen(extends = TerminalAddon)]
+    type FitAddon;
+
+    #[wasm_bindgen(constructor)]
+    fn new() -> FitAddon;
+
+    #[wasm_bindgen(method)]
+    fn fit(this: &FitAddon);
+}
+
 #[wasm_bindgen(module = "xterm")]
 extern "C" {
     type Terminal;
@@ -34,13 +47,31 @@ extern "C" {
     fn open(this: &Terminal, parent: Element);
 
     #[wasm_bindgen(method)]
-    pub fn write(this: &Terminal, data: String);
+    fn write(this: &Terminal, data: String);
 
-    #[wasm_bindgen(method, js_name = attachCustomKeyEventHandler)]
-    pub fn attach_custom_key_event_handler(
+    #[wasm_bindgen(method, js_name = "attachCustomKeyEventHandler")]
+    fn attach_custom_key_event_handler(
         this: &Terminal,
         handler: &Closure<dyn FnMut(KeyboardEvent) -> bool>,
     );
+
+    #[wasm_bindgen(js_name = "ITerminalAddon")]
+    type TerminalAddon;
+
+    #[wasm_bindgen(method)]
+    fn activate(this: &TerminalAddon, terminal: Terminal);
+
+    #[wasm_bindgen(method, js_name = loadAddon)]
+    fn load_addon(this: &Terminal, addon: TerminalAddon);
+
+    #[wasm_bindgen(method, getter)]
+    fn cols(this: &Terminal) -> usize;
+
+    #[wasm_bindgen(method, getter)]
+    fn rows(this: &Terminal) -> usize;
+
+    #[wasm_bindgen(method)]
+    fn focus(this: &Terminal);
 }
 
 // This is like the `main` function, except for JavaScript.
@@ -62,26 +93,61 @@ pub fn main_js() -> Result<(), JsValue> {
         .get_element_by_id("terminal")
         .unwrap();
 
-    let width = terminal_elem.client_width();
-    let height = terminal_elem.client_height();
-
     terminal.open(terminal_elem);
 
     let (tx, rx) = mpsc::channel(1);
 
     let c = Closure::new(move |event: KeyboardEvent| {
-        let _ = tx.blocking_send(Event::KeyPressed(Key::Char(
-            event.key().chars().next().unwrap(),
-        ))); // Should this be a normal send (async);
+        if event.type_() != "keydown" {
+            return true;
+        }
+
+        // TODO: handle error
+        // TODO: Should this be a normal send (async)
+        let _ = tx.blocking_send(Event::KeyPressed(match event.key().as_str() {
+            "Enter" => Key::Enter,
+            "ArrowLeft" => Key::Left,
+            "ArrowUp" => Key::Up,
+            "ArrowRight" => Key::Right,
+            "ArrowDown" => Key::Down,
+            "Tab" => Key::Tab,
+            "Backspace" => Key::Backspace,
+            "Escape" => Key::Esc,
+            "Insert" => Key::Insert,
+            "Delete" => Key::Delete,
+            "Home" => Key::Home,
+            "End" => Key::End,
+            "PageUp" => Key::PageUp,
+            "PageDown" => Key::PageDown,
+            key => {
+                // TODO: clean this up
+                if key.len() == 1 {
+                    if event.ctrl_key() {
+                        Key::Ctrl(key.chars().next().unwrap())
+                    } else {
+                        Key::Char(key.chars().next().unwrap())
+                    }
+                } else {
+                    Key::Unknown
+                }
+            }
+        }));
+
         true
     });
 
+    let fit = FitAddon::new();
+
     terminal.attach_custom_key_event_handler(&c);
+    terminal.load_addon(fit.clone().into());
+    fit.fit();
 
     c.forget();
 
+    terminal.focus();
+
     spawn_local(async move {
-        let mut canvas = WebCanvas::new(width as usize, height as usize, terminal);
+        let mut canvas = WebCanvas::new(terminal.cols(), terminal.rows(), terminal);
 
         let mut editor = Editor::new(&mut canvas).expect("creating editor");
 
@@ -115,14 +181,21 @@ impl WebCanvas {
 
 impl Canvas for WebCanvas {
     fn clear(&mut self) -> anyhow::Result<(), IoError> {
+        self.buffer
+            .get_mut()
+            .write_all("\x1B[2J".as_bytes())
+            .expect("buffer should be writable");
+
         Ok(())
     }
 
     fn draw<'a, I: Iterator<Item = &'a Cell>>(&mut self, cells: I) -> anyhow::Result<(), IoError> {
         for cell in cells {
+            self.position_cursor(cell.position().row, cell.position().col)?;
+
             self.buffer
                 .get_mut()
-                .write(cell.symbol().as_bytes())
+                .write_all(cell.symbol().as_bytes())
                 .expect("buffer should be writable");
         }
 
@@ -133,24 +206,45 @@ impl Canvas for WebCanvas {
         self.buffer
             .get_mut()
             .flush()
-            .expect("fix these epectations");
+            .expect("fix these expectations");
 
         let s = String::from_utf8(self.buffer.replace(Vec::new()))
             .expect("should be able to convert buffer to string");
 
         self.terminal.write(s);
+
         Ok(())
     }
 
     fn hide_cursor(&mut self) -> anyhow::Result<(), IoError> {
+        self.buffer
+            .get_mut()
+            .write_all("\x1B[?25l".as_bytes())
+            .expect("buffer should be writable");
+
         Ok(())
     }
 
     fn position_cursor(&mut self, row: usize, col: usize) -> anyhow::Result<(), IoError> {
+        let x =
+            u16::try_from(col).map_err(|e| IoError::new(io::ErrorKind::Other, format!("{}", e)))?;
+        let y =
+            u16::try_from(row).map_err(|e| IoError::new(io::ErrorKind::Other, format!("{}", e)))?;
+
+        self.buffer
+            .get_mut()
+            .write_all(format!("\x1B[{};{}H", row + 1, col + 1).as_bytes())
+            .expect("buffer should be writable");
+
         Ok(())
     }
 
     fn show_cursor(&mut self) -> anyhow::Result<(), IoError> {
+        self.buffer
+            .get_mut()
+            .write_all("\x1B[?25h".as_bytes())
+            .expect("buffer should be writable");
+
         Ok(())
     }
 

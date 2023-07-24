@@ -1,26 +1,25 @@
 use std::io::Error as IoError;
 use std::pin::Pin;
-use tokio_stream::Stream;
 
 /// `Key` presses accepted by the editor.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Key {
-    Backspace,
-    Delete,
-    Char(char),
-    Ctrl(char),
     Enter,
-    Esc,
-    Home,
-    End,
-    Insert,
-    PageUp,
-    PageDown,
     Tab,
-    Up,
-    Down,
+    Backspace,
+    Esc,
     Left,
     Right,
+    Up,
+    Down,
+    Insert,
+    Delete,
+    Home,
+    End,
+    PageUp,
+    PageDown,
+    Char(char),
+    Ctrl(char),
     Unknown,
 }
 
@@ -34,4 +33,4 @@ pub enum Event {
 }
 
 /// `EventStream` is a an asynchronous tokio stream of input Events.
-pub type EventStream = Pin<Box<dyn Stream<Item = Event> + Send>>;
+pub type EventStream = Pin<Box<dyn tokio_stream::Stream<Item = Event> + Send>>;

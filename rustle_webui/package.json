@@ -16,6 +16,7 @@
     "webpack-dev-server": "^4.15.1"
   },
   "dependencies": {
-    "xterm": "^5.2.1"
+    "xterm": "^5.2.1",
+    "xterm-addon-fit": "^0.7.0"
   }
 }
