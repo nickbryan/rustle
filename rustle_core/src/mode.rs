@@ -184,7 +184,7 @@ impl Normal {
 }
 
 mod normal {
-    use super::{Mode};
+    use super::Mode;
     use crate::communication::Message;
     use nom::{
         branch::alt,
