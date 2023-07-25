@@ -97,7 +97,7 @@ impl View for Window {
             mode: self.mode.to_string(),
             line_count: 0,
             cursor_position: frame.cursor_position(),
-            file_name: "".to_string(),
+            file_name: String::new(),
         }
         .render_to(frame);
 

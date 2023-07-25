@@ -1,6 +1,8 @@
 /// Colors supported by the editor.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Default)]
 pub enum Color {
+    #[default]
     Reset,
     Black,
     Red,
@@ -22,11 +24,7 @@ pub enum Color {
     AnsiValue(u8),
 }
 
-impl Default for Color {
-    fn default() -> Self {
-        Color::Reset
-    }
-}
+
 
 /// A position in ui space.
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq)]
@@ -37,7 +35,7 @@ pub struct Position {
 
 impl Position {
     /// Create a new Position.
-    pub fn new(col: usize, row: usize) -> Self {
+    #[must_use] pub fn new(col: usize, row: usize) -> Self {
         Self { col, row }
     }
 }
@@ -58,7 +56,7 @@ pub struct Rect {
 
 impl Rect {
     /// Create a new Rect with default Position (0, 0).
-    pub fn new(width: usize, height: usize) -> Self {
+    #[must_use] pub fn new(width: usize, height: usize) -> Self {
         Self {
             width,
             height,
@@ -67,7 +65,7 @@ impl Rect {
     }
 
     /// Create a new Rect with a set Position.
-    pub fn positioned(width: usize, height: usize, col: usize, row: usize) -> Self {
+    #[must_use] pub fn positioned(width: usize, height: usize, col: usize, row: usize) -> Self {
         Self {
             width,
             height,
@@ -76,33 +74,33 @@ impl Rect {
     }
 
     /// Returns the area of the Rect.
-    pub fn area(&self) -> usize {
+    #[must_use] pub fn area(&self) -> usize {
         self.width.saturating_mul(self.height)
     }
 
     /// Returns the leftmost possible value of the Rect. **Note**: This is zero based.
-    pub fn left(&self) -> usize {
+    #[must_use] pub fn left(&self) -> usize {
         self.position.col
     }
 
     /// Returns the rightmost possible value of the Rect. **Note**: This is zero based.
-    pub fn right(&self) -> usize {
+    #[must_use] pub fn right(&self) -> usize {
         self.position.col + self.width - 1
     }
 
     /// Returns the topmost possible value of the Rect. **Note**: This is zero based.
-    pub fn top(&self) -> usize {
+    #[must_use] pub fn top(&self) -> usize {
         self.position.row
     }
 
     /// Returns the bottommost possible value of the Rect. **Note**: This is zero based.
-    pub fn bottom(&self) -> usize {
+    #[must_use] pub fn bottom(&self) -> usize {
         self.position.row + self.height - 1
     }
 
     /// Check if the given position is within the Rect, taking the Rect's Position into
     /// consideration.
-    pub fn contains(&self, position: &Position) -> bool {
+    #[must_use] pub fn contains(&self, position: &Position) -> bool {
         let Position { col, row } = *position;
 
         col >= self.left() && col <= self.right() && row >= self.top() && row <= self.bottom()
@@ -181,6 +179,6 @@ mod tests {
     #[test]
     fn contains_returns_false_if_position_not_contained() {
         let r = Rect::positioned(10, 10, 10, 10);
-        assert_eq!(r.contains(&Position::new(20, 20)), false);
+        assert!(!r.contains(&Position::new(20, 20)));
     }
 }

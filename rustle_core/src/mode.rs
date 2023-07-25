@@ -172,7 +172,7 @@ impl Normal {
             Key::End => Some(Message::MoveCursorLineEnd),
             Key::PageUp => Some(Message::MoveCursorPageUp),
             Key::PageDown => Some(Message::MoveCursorPageDown),
-            Key::Insert => Some(Message::EnterMode(Mode::Insert(Insert::default()))),
+            Key::Insert => Some(Message::EnterMode(Mode::Insert(Insert))),
             Key::Enter => Some(Message::MoveCursorDown(1)),
             _ => None,
         }
@@ -216,10 +216,7 @@ mod normal {
     }
 
     fn insert_mode(input: &str) -> IResult<&str, Message> {
-        value(
-            Message::EnterMode(Mode::Insert(Insert::default())),
-            char('i'),
-        )(input)
+        value(Message::EnterMode(Mode::Insert(Insert)), char('i'))(input)
     }
 
     fn non_zero_digit(input: &str) -> IResult<&str, char> {

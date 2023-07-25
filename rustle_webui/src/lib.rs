@@ -226,10 +226,10 @@ impl Canvas for WebCanvas {
     }
 
     fn position_cursor(&mut self, row: usize, col: usize) -> anyhow::Result<(), IoError> {
-        let x =
-            u16::try_from(col).map_err(|e| IoError::new(io::ErrorKind::Other, format!("{}", e)))?;
-        let y =
-            u16::try_from(row).map_err(|e| IoError::new(io::ErrorKind::Other, format!("{}", e)))?;
+        let _x =
+            u16::try_from(col).map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))?;
+        let _y =
+            u16::try_from(row).map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))?;
 
         self.buffer
             .get_mut()

@@ -187,7 +187,7 @@ impl View for Buffer {
         }
 
         for row_in_view in 0..self.viewport.height {
-            if let Some(row) = self.document.row(row_in_view as usize + self.offset.row) {
+            if let Some(row) = self.document.row(row_in_view + self.offset.row) {
                 let start = self.offset.col;
                 let end = self.offset.col + self.viewport.width;
                 let row = row.to_string(start, end);

@@ -25,7 +25,7 @@ impl View for StatusBar {
             status.push_str(&" ".repeat(self.area.width - len));
         }
 
-        status = format!("{}{}", status, line_indicator);
+        status = format!("{status}{line_indicator}");
         status.truncate(self.area.width);
 
         frame.write_line(
