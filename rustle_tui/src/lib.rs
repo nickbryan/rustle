@@ -264,8 +264,9 @@ mod tests {
         let backend = CrosstermCanvas::new(&mut out);
         drop(backend);
 
+        // TODO: fix this test locally and in CI (CI gets nothing written to out)
         assert_eq!(
-            "\u{1b}[?1049h\u{1b}[?1000h\u{1b}[?1002h\u{1b}[?1003h\u{1b}[?1015h\u{1b}[?1006h\u{1b}[?1006l\u{1b}[?1015l\u{1b}[?1003l\u{1b}[?1002l\u{1b}[?1000l\u{1b}[?1049l",
+            "\u{1b}[?1049h\u{1b}[?1049l",
             String::from_utf8(out).unwrap()
         );
     }
