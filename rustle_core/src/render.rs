@@ -7,24 +7,45 @@ use unicode_segmentation::UnicodeSegmentation;
 /// Canvas is an interface to the ui. It could be the terminal or web ui.
 pub trait Canvas {
     /// Clear the ui.
+    ///
+    /// # Errors
+    /// TODO...
     fn clear(&mut self) -> Result<(), IoError>;
 
     /// Draw the given cells in the ui's current buffer.
+    ///
+    /// # Errors
+    /// TODO...
     fn draw<'a, I: Iterator<Item = &'a Cell>>(&mut self, cells: I) -> Result<(), IoError>;
 
     /// Flush the ui's current buffer.
+    ///
+    /// # Errors
+    /// TODO...
     fn flush(&mut self) -> Result<(), IoError>;
 
     /// Hide the cursor.
+    ///
+    /// # Errors
+    /// TODO...
     fn hide_cursor(&mut self) -> Result<(), IoError>;
 
     /// Position the cursor at the given row and column.
+    ///
+    /// # Errors
+    /// TODO...
     fn position_cursor(&mut self, row: usize, col: usize) -> Result<(), IoError>;
 
     /// Show the cursor.
+    ///
+    /// # Errors
+    /// TODO...
     fn show_cursor(&mut self) -> Result<(), IoError>;
 
     /// Get the size of the ui.
+    ///
+    /// # Errors
+    /// TODO...
     fn size(&self) -> Result<Rect, IoError>;
 }
 
@@ -103,7 +124,7 @@ impl Frame {
         Self::filled(area, " ")
     }
 
-    /// Create a Frame` with all `Cell`s set to the given symbol.
+    /// Create a `Frame` with all `Cell`s set to the given symbol.
     pub fn filled(area: Rect, symbol: &str) -> Self {
         let size = area.area();
         let mut cells = Vec::with_capacity(size);

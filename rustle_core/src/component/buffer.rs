@@ -26,22 +26,11 @@ impl Buffer {
         }
     }
 
-    pub fn document_name(&self) -> String {
-        self.document
-            .file_name()
-            .unwrap_or(&"[No Name]".to_string())
-            .clone()
-    }
-
     pub fn cursor_position(&self) -> Position {
         Position::new(
             self.cursor_position.col.saturating_sub(self.offset.col),
             self.cursor_position.row.saturating_sub(self.offset.row),
         )
-    }
-
-    pub fn lines_in_document(&self) -> usize {
-        self.document.len()
     }
 
     pub fn scroll(&mut self) {
@@ -71,7 +60,7 @@ impl Buffer {
         self.offset = Position::from(offset);
     }
 
-    fn move_cursor(&mut self, msg: Message) {
+    fn move_cursor(&mut self, msg: &Message) {
         use crate::Row;
 
         let terminal_height = self.viewport.height - 2;
@@ -80,10 +69,10 @@ impl Buffer {
         let width = self.document.row(row).map_or(0, Row::len);
 
         let (col, row) = match msg {
-            Message::MoveCursorUp(n) => (col, row.saturating_sub(n)),
+            Message::MoveCursorUp(n) => (col, row.saturating_sub(*n)),
             Message::MoveCursorDown(n) => {
                 if row < height {
-                    (col, row.saturating_add(n))
+                    (col, row.saturating_add(*n))
                 } else {
                     (col, row)
                 }
@@ -146,31 +135,22 @@ impl Component for Buffer {
                     .insert(&self.cursor_position, ch)
                     .context("unable to insert character in document")?;
 
-                self.move_cursor(Message::MoveCursorRight(1));
+                self.move_cursor(&Message::MoveCursorRight(1));
             }
             Message::InsertLineBreak => {
                 self.document.insert_newline(&self.cursor_position);
-                self.move_cursor(Message::MoveCursorDown(1));
-                self.move_cursor(Message::MoveCursorLineStart);
+                self.move_cursor(&Message::MoveCursorDown(1));
+                self.move_cursor(&Message::MoveCursorLineStart);
             }
             Message::DeleteCharForward => self.document.delete(&self.cursor_position),
             Message::DeleteCharBackward => {
                 if self.cursor_position.col > 0 || self.cursor_position.row > 0 {
-                    self.move_cursor(Message::MoveCursorLeft(1));
+                    self.move_cursor(&Message::MoveCursorLeft(1));
                     self.document.delete(&self.cursor_position);
                 }
             }
-
-            Message::Save => self
-                .document
-                .save(None)
-                .context("unable to save document")?,
-            Message::SaveAs(filename) => self
-                .document
-                .save(Some(&filename))
-                .context("unable to save document")?,
             _ => {
-                self.move_cursor(msg);
+                self.move_cursor(&msg);
             }
         };
 

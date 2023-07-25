@@ -2,7 +2,7 @@ use crate::communication::{Command, Message};
 use crate::component::{Component, Window};
 use crate::mode::Normal;
 use crate::render::{View, Viewport};
-use crate::{Canvas, Event, EventStream, Mode};
+use crate::{mode, Canvas, Event, EventStream, Mode};
 use anyhow::{Error, Result};
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
@@ -77,8 +77,8 @@ where
                     match event {
                         Event::KeyPressed(key) => {
                             if let Some(msg) = match self.mode {
-                                Mode::Execute(ref mode) => mode.handle(key),
-                                Mode::Insert(ref mode) => mode.handle(key),
+                                Mode::Execute => mode::Execute::handle(key),
+                                Mode::Insert => mode::Insert::handle(key),
                                 Mode::Normal(ref mut mode) => mode.handle(key),
                             } {
                                 msg_tx
@@ -116,8 +116,8 @@ where
                     }
 
                     if let Message::ParseCommandLineInput(input) = msg {
-                        if let Mode::Execute(ref mode) = self.mode {
-                            let msg = mode.parse(&input);
+                        if let Mode::Execute = self.mode {
+                            let msg = mode::Execute::parse(&input);
 
                             self.mode = Mode::Normal(Normal::default());
 

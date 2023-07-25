@@ -1,12 +1,11 @@
 use crate::communication::Message;
-use crate::ui::Position;
-use crate::{Key, Row};
+use crate::Key;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Mode {
-    Execute(Execute),
-    Insert(Insert),
+    Execute,
+    Insert,
     Normal(Normal),
 }
 
@@ -19,21 +18,18 @@ impl Default for Mode {
 impl Display for Mode {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
-            Self::Execute(_) => write!(f, "COMMAND"),
-            Self::Insert(_) => write!(f, "INSERT"),
+            Self::Execute => write!(f, "COMMAND"),
+            Self::Insert => write!(f, "INSERT"),
             Self::Normal(_) => write!(f, "NORMAL"),
         }
     }
 }
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
-pub struct Execute {
-    row: Row,
-    cursor_position: Position,
-}
+pub struct Execute;
 
 impl Execute {
-    pub fn handle(&self, key: Key) -> Option<Message> {
+    pub fn handle(key: Key) -> Option<Message> {
         match key {
             Key::Enter => Some(Message::EndCommandLineInput),
             Key::Char(ch) => Some(Message::InsertChar(ch)),
@@ -48,7 +44,7 @@ impl Execute {
         }
     }
 
-    pub fn parse(&self, command_string: &str) -> Option<Message> {
+    pub fn parse(command_string: &str) -> Option<Message> {
         execute::command_for_input(command_string)
     }
 }
@@ -132,7 +128,7 @@ mod execute {
 pub struct Insert;
 
 impl Insert {
-    pub fn handle(&self, key: Key) -> Option<Message> {
+    pub fn handle(key: Key) -> Option<Message> {
         match key {
             Key::Up => Some(Message::MoveCursorUp(1)),
             Key::Down => Some(Message::MoveCursorDown(1)),
@@ -172,7 +168,7 @@ impl Normal {
             Key::End => Some(Message::MoveCursorLineEnd),
             Key::PageUp => Some(Message::MoveCursorPageUp),
             Key::PageDown => Some(Message::MoveCursorPageDown),
-            Key::Insert => Some(Message::EnterMode(Mode::Insert(Insert))),
+            Key::Insert => Some(Message::EnterMode(Mode::Insert)),
             Key::Enter => Some(Message::MoveCursorDown(1)),
             _ => None,
         }
@@ -188,7 +184,7 @@ impl Normal {
 }
 
 mod normal {
-    use super::{Execute, Insert, Mode};
+    use super::{Mode};
     use crate::communication::Message;
     use nom::{
         branch::alt,
@@ -209,14 +205,11 @@ mod normal {
     }
 
     fn command_mode(input: &str) -> IResult<&str, Message> {
-        value(
-            Message::EnterMode(Mode::Execute(Execute::default())),
-            char(':'),
-        )(input)
+        value(Message::EnterMode(Mode::Execute), char(':'))(input)
     }
 
     fn insert_mode(input: &str) -> IResult<&str, Message> {
-        value(Message::EnterMode(Mode::Insert(Insert)), char('i'))(input)
+        value(Message::EnterMode(Mode::Insert), char('i'))(input)
     }
 
     fn non_zero_digit(input: &str) -> IResult<&str, char> {

@@ -76,6 +76,8 @@ extern "C" {
 
 // This is like the `main` function, except for JavaScript.
 #[wasm_bindgen(start)]
+/// # Errors
+/// TODO...
 pub fn main_js() -> Result<(), JsValue> {
     // TODO: convert the errors in here to anyhow
 
@@ -190,6 +192,7 @@ impl Canvas for WebCanvas {
     }
 
     fn draw<'a, I: Iterator<Item = &'a Cell>>(&mut self, cells: I) -> anyhow::Result<(), IoError> {
+        // TODO: finish this so it adds colour etc. (see _tui)
         for cell in cells {
             self.position_cursor(cell.position().row, cell.position().col)?;
 

@@ -83,11 +83,6 @@ impl Row {
         self.string[..].graphemes(true).count()
     }
 
-    /// Convert the Row to an array of bytes for writing.
-    pub fn as_bytes(&self) -> &[u8] {
-        self.string.as_bytes()
-    }
-
     /// Returns `true` if this `Row` has a length of zero, and `false` otherwise.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
@@ -189,11 +184,6 @@ mod tests {
     #[test]
     fn len_counts_grapheme_clusters_individually() {
         assert_eq!(4, Row::from("\u{1f980}g\u{308}\u{ac01}\u{e01}").len());
-    }
-
-    #[test]
-    fn row_can_be_converted_to_bytes_for_writing() {
-        assert_eq!([72, 101, 108, 108, 111], Row::from("Hello").as_bytes());
     }
 
     #[test]

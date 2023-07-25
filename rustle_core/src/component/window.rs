@@ -23,7 +23,7 @@ impl Window {
             Position::new(0, size.bottom()),
         );
 
-        if let Mode::Execute(_) = mode {
+        if let Mode::Execute = mode {
             command_prompt.focus();
         }
 
@@ -49,14 +49,14 @@ impl Window {
 impl Component for Window {
     fn update(&mut self, msg: Message) -> Result<Option<Command>> {
         if let Message::EnterMode(mode) = msg.clone() {
-            if let Mode::Insert(_) = mode {
+            if let Mode::Insert = mode {
                 if self.buffers.is_empty() {
                     self.buffers
                         .push(Buffer::new(self.buffer_space(), Document::default()));
                 }
             }
 
-            if let Mode::Execute(_) = mode {
+            if let Mode::Execute = mode {
                 self.command_prompt.focus();
             } else {
                 self.command_prompt.unfocus();
@@ -65,11 +65,15 @@ impl Component for Window {
             self.mode = mode;
         }
 
-        if let Mode::Execute(_) = self.mode {
+        if let Mode::Execute = self.mode {
             return self.command_prompt.update(msg);
         }
 
-        self.buffers[self.active_buffer_idx].update(msg)
+        if !self.buffers.is_empty() {
+            return self.buffers[self.active_buffer_idx].update(msg);
+        }
+
+        Ok(None)
     }
 }
 
@@ -84,7 +88,7 @@ impl View for Window {
             self.buffers[self.active_buffer_idx].render_to(frame);
         }
 
-        if let Mode::Normal(_) | Mode::Insert(_) = self.mode {
+        if let Mode::Normal(_) | Mode::Insert = self.mode {
             frame.set_cursor_position(if self.buffers.is_empty() {
                 Position::default()
             } else {
