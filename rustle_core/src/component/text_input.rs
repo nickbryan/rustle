@@ -1,5 +1,5 @@
 use crate::communication::{self, Command, Message};
-use crate::component::Component;
+use crate::editor::Component;
 use crate::mode::{Mode, Normal};
 use crate::render::{Frame, View};
 use crate::ui::{Color, Position};

@@ -1,6 +1,7 @@
 use crate::communication::{Command, Message};
-use crate::component::{Buffer, Component, StatusBar, TextInput, Welcome};
+use crate::component::{Buffer, StatusBar, TextInput, Welcome};
 use crate::document::Document;
+use crate::editor::Component;
 use crate::mode::Mode;
 use crate::render::{Frame, View};
 use crate::ui::{Position, Rect};

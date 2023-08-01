@@ -1,11 +1,17 @@
 use crate::communication::{Command, Message};
-use crate::component::{Component, Window};
+use crate::component::Window;
 use crate::mode::Normal;
 use crate::render::{View, Viewport};
 use crate::{mode, Canvas, Event, EventStream, Mode};
 use anyhow::{Error, Result};
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
+
+/// `Component` is the foundation for all interactivity within the `Editor`. You can view it as the
+/// model in elm architecture.
+pub trait Component {
+    fn update(&mut self, msg: Message) -> Result<Option<Command>>;
+}
 
 /// `Editor` is the entry point into the application and is responsible for orchestrating
 /// communication between `Component`s.
@@ -57,7 +63,6 @@ where
     pub async fn consume(&mut self, mut event_stream: EventStream) -> Result<()> {
         use anyhow::Context;
 
-        // TODO: figure out the buffer size of these channels. Is this even async?
         let (err_tx, mut err_rx) = mpsc::channel::<Error>(1);
         let (cmd_tx, mut cmd_rx) = mpsc::channel::<Command>(1);
         let (msg_tx, mut msg_rx) = mpsc::channel(1);

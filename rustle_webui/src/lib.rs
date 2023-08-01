@@ -1,6 +1,6 @@
 #![warn(clippy::all, clippy::pedantic)]
 
-use rustle_core::ui::Rect;
+use rustle_core::ui::{Color, Rect};
 use rustle_core::{Canvas, Cell, Editor, Event, Key};
 use std::io;
 use std::io::{Error as IoError, Write};
@@ -181,6 +181,87 @@ impl WebCanvas {
     }
 }
 
+impl WebCanvas {
+    fn set_foreground_color(&mut self, color: Color) {
+        if let Color::AnsiValue(v) = color {
+            self.buffer
+                .get_mut()
+                .write_all(format!("\x1B[38;5;{v}m").as_bytes())
+                .expect("buffer should be writable");
+
+            return;
+        }
+
+        if let Color::Rgb(r, g, b) = color {
+            self.buffer
+                .get_mut()
+                .write_all(format!("\x1B[38;2;{r};{g};{b}m").as_bytes())
+                .expect("buffer should be writable");
+
+            return;
+        }
+
+        self.buffer
+            .get_mut()
+            .write_all(format!("\x1B[{}m", color_code(color)).as_bytes())
+            .expect("buffer should be writable");
+    }
+
+    fn set_background_color(&mut self, color: Color) {
+        if let Color::AnsiValue(v) = color {
+            self.buffer
+                .get_mut()
+                .write_all(format!("\x1B[48;5;{v}m").as_bytes())
+                .expect("buffer should be writable");
+
+            return;
+        }
+
+        if let Color::Rgb(r, g, b) = color {
+            self.buffer
+                .get_mut()
+                .write_all(format!("\x1B[48;2;{r};{g};{b}m").as_bytes())
+                .expect("buffer should be writable");
+
+            return;
+        }
+
+        let mut code = color_code(color);
+
+        if code > 0 {
+            code += 10;
+        }
+
+        self.buffer
+            .get_mut()
+            .write_all(format!("\x1B[{code}m").as_bytes())
+            .expect("buffer should be writable");
+    }
+}
+
+fn color_code(color: Color) -> usize {
+    match color {
+        Color::Reset => 0,
+        Color::Black => 30,
+        Color::Red => 31,
+        Color::Green => 32,
+        Color::Yellow => 33,
+        Color::Blue => 34,
+        Color::Magenta => 35,
+        Color::Cyan => 36,
+        Color::Gray => 37,
+        Color::DarkGray => 90,
+        Color::LightRed => 91,
+        Color::LightGreen => 92,
+        Color::LightYellow => 93,
+        Color::LightBlue => 94,
+        Color::LightMagenta => 95,
+        Color::LightCyan => 96,
+        Color::White => 97,
+        _ => unimplemented!(), // Handled above...TODO: clean this up
+    }
+}
+
 impl Canvas for WebCanvas {
     fn clear(&mut self) -> anyhow::Result<(), IoError> {
         self.buffer
@@ -192,15 +273,32 @@ impl Canvas for WebCanvas {
     }
 
     fn draw<'a, I: Iterator<Item = &'a Cell>>(&mut self, cells: I) -> anyhow::Result<(), IoError> {
-        // TODO: finish this so it adds colour etc. (see _tui)
+        let mut prev_background = Color::Reset;
+        let mut prev_foreground = Color::Reset;
+
         for cell in cells {
             self.position_cursor(cell.position().row, cell.position().col)?;
+
+            if cell.background() != prev_background {
+                self.set_background_color(cell.background());
+
+                prev_background = cell.background();
+            }
+
+            if cell.foreground() != prev_foreground {
+                self.set_foreground_color(cell.foreground());
+
+                prev_foreground = cell.foreground();
+            }
 
             self.buffer
                 .get_mut()
                 .write_all(cell.symbol().as_bytes())
                 .expect("buffer should be writable");
         }
+
+        self.set_background_color(Color::Reset);
+        self.set_foreground_color(Color::Reset);
 
         Ok(())
     }

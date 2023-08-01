@@ -31,8 +31,8 @@ impl View for StatusBar {
         frame.write_line(
             self.area.top(),
             &status,
-            Color::Rgb(63, 63, 63),
-            Color::Rgb(239, 239, 239),
+            Color::Rgb(128, 119, 106),
+            Color::Rgb(59, 56, 54),
         );
     }
 }

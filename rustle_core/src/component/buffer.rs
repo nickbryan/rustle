@@ -1,7 +1,7 @@
 use crate::{
     communication::{Command, Message},
-    component::Component,
     document::Document,
+    editor::Component,
     render::View,
     ui::{Color, Position, Rect},
 };
