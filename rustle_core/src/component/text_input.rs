@@ -3,7 +3,6 @@ use crate::editor::Component;
 use crate::mode::{Mode, Normal};
 use crate::render::{Frame, View};
 use crate::ui::{Color, Position};
-use crate::Row;
 use anyhow::Result;
 
 pub struct TextInput {
@@ -12,7 +11,7 @@ pub struct TextInput {
     place_holder: String,
     position: Position,
     prompt: String,
-    value: Row,
+    value: String,
 }
 
 impl TextInput {
@@ -23,7 +22,7 @@ impl TextInput {
             place_holder: String::from(place_holder),
             position,
             prompt: String::from(prompt),
-            value: Row::default(),
+            value: String::new(),
         }
     }
 
@@ -39,7 +38,7 @@ impl TextInput {
     }
 
     fn reset(&mut self) {
-        self.value = Row::default();
+        self.value = String::new();
         self.cursor_position = 0;
     }
 }
@@ -55,7 +54,7 @@ impl Component for TextInput {
             }
             Message::EndCommandLineInput => {
                 let cmd = Some(communication::wrap(Message::ParseCommandLineInput(
-                    self.value.contents(),
+                    self.value.clone(),
                 )));
 
                 self.reset();
@@ -94,7 +93,7 @@ impl Component for TextInput {
                 None
             }
             Message::DeleteCharForward => {
-                self.value.delete(self.cursor_position);
+                self.value.remove(self.cursor_position);
 
                 // TODO: revmove duplication here.
                 if self.value.len() <= 1 {
@@ -109,7 +108,7 @@ impl Component for TextInput {
             }
             Message::DeleteCharBackward => {
                 self.cursor_position = self.cursor_position.saturating_sub(1);
-                self.value.delete(self.cursor_position);
+                self.value.remove(self.cursor_position);
 
                 if self.value.len() <= 1 {
                     self.reset();
@@ -139,7 +138,7 @@ impl View for TextInput {
             return;
         }
 
-        let value = format!("{}{}", self.prompt, &self.value.contents());
+        let value = format!("{}{}", self.prompt, &self.value.clone());
 
         frame.write_line(
             self.position.row,

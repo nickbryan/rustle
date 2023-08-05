@@ -16,6 +16,10 @@ pub struct Buffer {
 }
 
 impl Buffer {
+    pub fn len(&self) -> usize {
+        self.document.len()
+    }
+
     pub fn new(viewport: Rect, document: Document) -> Self {
         Self {
             cursor_position: Position::default(),
@@ -61,12 +65,10 @@ impl Buffer {
     }
 
     fn move_cursor(&mut self, msg: &Message) {
-        use crate::Row;
-
         let terminal_height = self.viewport.height - 2;
         let Position { col, row } = self.cursor_position;
         let height = self.document.len();
-        let width = self.document.row(row).map_or(0, Row::len);
+        let width = self.document.row(row).map_or(0, |r| r.graphemes().count());
 
         let (col, row) = match msg {
             Message::MoveCursorUp(n) => (col, row.saturating_sub(*n)),
@@ -82,8 +84,8 @@ impl Buffer {
                     (col - n, row)
                 } else if row > 0 {
                     self.document
-                        .row(row)
-                        .map_or((0, row - n), |r| (r.len(), row - n))
+                        .row(row - 1)
+                        .map_or((0, row - 1), |r| (r.graphemes().count(), row - 1))
                 } else {
                     (col, row)
                 }
@@ -116,7 +118,7 @@ impl Buffer {
             _ => (col, row),
         };
 
-        let new_width = self.document.row(row).map_or(0, Row::len);
+        let new_width = self.document.row(row).map_or(0, |r| r.graphemes().count());
 
         self.cursor_position = Position {
             col: if col > new_width { new_width } else { col },
@@ -127,13 +129,9 @@ impl Buffer {
 
 impl Component for Buffer {
     fn update(&mut self, msg: Message) -> Result<Option<Command>> {
-        use anyhow::Context;
-
         match msg {
             Message::InsertChar(ch) => {
-                self.document
-                    .insert(&self.cursor_position, ch)
-                    .context("unable to insert character in document")?;
+                self.document.insert(&self.cursor_position, ch);
 
                 self.move_cursor(&Message::MoveCursorRight(1));
             }
@@ -168,10 +166,13 @@ impl View for Buffer {
 
         for row_in_view in 0..self.viewport.height {
             if let Some(row) = self.document.row(row_in_view + self.offset.row) {
-                let start = self.offset.col;
-                let end = self.offset.col + self.viewport.width;
-                let row = row.to_string(start, end);
+                // let start = self.offset.col; // TODO: fix this and look at string conversion (should I pass rope slices?)
+                // let end = self.offset.col + self.viewport.width;
+                let row = row.to_string();
                 frame.write_line(row_in_view, &row, Color::default(), Color::default());
+            } else if self.cursor_position.row == row_in_view {
+                //TODO: hacky
+                frame.write_line(row_in_view, "", Color::default(), Color::default());
             } else {
                 frame.write_line(row_in_view, "~", Color::Gray, Color::default());
             }

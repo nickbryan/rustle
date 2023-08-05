@@ -1,15 +1,13 @@
-use crate::{row::Row, ui::Position};
-use anyhow::{Error, Result};
+use crate::ui::Position;
+use crop::{Rope, RopeSlice};
 
 pub struct Document {
-    rows: Vec<Row>,
+    rope: Rope,
 }
 
 impl Default for Document {
     fn default() -> Self {
-        Self {
-            rows: vec![Row::default()],
-        }
+        Self { rope: Rope::new() }
     }
 }
 
@@ -19,38 +17,15 @@ impl Document {
             return;
         }
 
-        if at.col == self.rows.get_mut(at.row).unwrap().len() && at.row < self.len() - 1 {
-            let next_row = self.rows.remove(at.row + 1);
-            let row = self.rows.get_mut(at.row).unwrap();
-            row.append(&next_row);
-            return;
-        }
-
-        let row = self.rows.get_mut(at.row).unwrap();
-        row.delete(at.col);
+        self.rope.delete(
+            (self.rope.byte_of_line(at.row) + at.col)..=(self.rope.byte_of_line(at.row) + at.col),
+        );
     }
 
-    pub fn insert(&mut self, at: &Position, ch: char) -> Result<()> {
-        use std::cmp::Ordering;
-
-        match at.row.cmp(&self.len()) {
-            Ordering::Equal => {
-                let mut row = Row::default();
-                row.insert(0, ch);
-                self.rows.push(row);
-
-                Ok(())
-            }
-            Ordering::Less => {
-                let row = self.rows.get_mut(at.row).unwrap();
-                row.insert(at.col, ch);
-                Ok(())
-            }
-            Ordering::Greater => Err(Error::from(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "trying to insert character past current string length",
-            ))),
-        }
+    pub fn insert(&mut self, at: &Position, ch: char) {
+        //TODO: handle bounds checks here
+        self.rope
+            .insert(self.rope.byte_of_line(at.row) + at.col, ch.to_string());
     }
 
     pub fn insert_newline(&mut self, at: &Position) {
@@ -58,20 +33,19 @@ impl Document {
             return;
         }
 
-        if at.row == self.len() {
-            self.rows.push(Row::default());
-            return;
-        }
-
-        let new_row = self.rows.get_mut(at.row).unwrap().split(at.col);
-        self.rows.insert(at.row + 1, new_row);
+        self.rope
+            .insert(self.rope.byte_of_line(at.row) + at.col, "\n");
     }
 
-    pub fn row(&self, index: usize) -> Option<&Row> {
-        self.rows.get(index)
+    pub fn row(&self, index: usize) -> Option<RopeSlice> {
+        if index >= self.rope.line_len() {
+            return None;
+        }
+
+        Some(self.rope.line(index))
     }
 
     pub fn len(&self) -> usize {
-        self.rows.len()
+        self.rope.line_len()
     }
 }

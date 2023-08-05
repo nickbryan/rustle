@@ -7,7 +7,6 @@ mod editor;
 mod input;
 mod mode;
 mod render;
-mod row;
 
 pub mod ui;
 
@@ -16,4 +15,3 @@ pub use input::{Event, EventStream, Key};
 pub use render::{Canvas, Cell};
 
 use mode::Mode;
-use row::Row;

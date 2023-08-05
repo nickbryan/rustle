@@ -75,9 +75,6 @@ where
 
         while !self.should_quit {
             tokio::select! {
-                Some(e) = err_rx.recv() => {
-                    return Err(e);
-                }
                 Some(event) = event_stream.next() => {
                     match event {
                         Event::KeyPressed(key) => {
@@ -150,6 +147,9 @@ where
                     if let Err(e) = self.viewport.render(&self.root_component).context("rendering error occurred") {
                         err_tx.send(e).await.expect("unable to send on closed err_tx channel");
                     }
+                }
+                Some(e) = err_rx.recv() => {
+                    return Err(e);
                 }
                 else => break,
             }

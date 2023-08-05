@@ -89,6 +89,8 @@ impl View for Window {
             self.buffers[self.active_buffer_idx].render_to(frame);
         }
 
+        let mut len = 0;
+
         if let Mode::Normal(_) | Mode::Insert = self.mode {
             frame.set_cursor_position(if self.buffers.is_empty() {
                 Position::default()
@@ -97,10 +99,14 @@ impl View for Window {
             });
         }
 
+        if !self.buffers.is_empty() {
+            len = self.buffers[self.active_buffer_idx].len();
+        }
+
         StatusBar {
             area: Rect::positioned(self.size.width, 1, self.size.left(), self.size.bottom() - 1),
             mode: self.mode.to_string(),
-            line_count: 0,
+            line_count: len,
             cursor_position: frame.cursor_position(),
             file_name: String::new(),
         }

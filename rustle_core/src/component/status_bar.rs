@@ -14,7 +14,7 @@ impl View for StatusBar {
         let mut status = format!("Mode: [{}]    File: {}", self.mode, self.file_name);
         let line_indicator = format!(
             "L: {}/{} C: {}",
-            self.cursor_position.row,
+            self.cursor_position.row + 1,
             self.line_count,
             self.cursor_position.col + 1
         );

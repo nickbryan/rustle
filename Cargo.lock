@@ -85,6 +85,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "crop"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "959e53a6ca6070e1819d23930c0147cfc0de843451a3b3d78827130c00fb33d2"
+dependencies = [
+ "str_indices",
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "crossterm"
 version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -407,6 +417,7 @@ name = "rustle_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "crop",
  "nom",
  "thiserror",
  "tokio",
@@ -482,6 +493,12 @@ name = "smallvec"
 version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62bb4feee49fdd9f707ef802e22365a35de4b7b299de4763d44bfea899442ff9"
+
+[[package]]
+name = "str_indices"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f026164926842ec52deb1938fae44f83dfdb82d0a5b0270c5bd5935ab74d6dd"
 
 [[package]]
 name = "syn"
