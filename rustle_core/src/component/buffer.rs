@@ -10,7 +10,6 @@ use anyhow::Result;
 pub struct Buffer {
     cursor_position: Position,
     document: Document,
-    focused: bool,
     offset: Position,
     viewport: Rect,
 }
@@ -24,17 +23,14 @@ impl Buffer {
         Self {
             cursor_position: Position::default(),
             document,
-            focused: false,
             offset: Position::default(),
             viewport,
         }
     }
 
     pub fn cursor_position(&self) -> Position {
-        let num_len = self.document.len().to_string().len().saturating_add(1);
-
         Position::new(
-            num_len + self.cursor_position.col.saturating_sub(self.offset.col),
+            self.margin_width() + self.cursor_position.col.saturating_sub(self.offset.col),
             self.cursor_position.row.saturating_sub(self.offset.row),
         )
     }
@@ -127,6 +123,15 @@ impl Buffer {
             row,
         };
     }
+
+    fn margin_width(&self) -> usize {
+        self.document
+            .len()
+            .to_string()
+            .len()
+            .saturating_add(1)
+            .max(3)
+    }
 }
 
 impl Component for Buffer {
@@ -162,24 +167,45 @@ impl Component for Buffer {
 
 impl View for Buffer {
     fn render_to(&self, frame: &mut crate::render::Frame) {
-        let num_len = self.document.len().to_string().len();
-
         for row_in_view in 0..self.viewport.height {
+            frame.write(
+                &Position {
+                    col: 0,
+                    row: row_in_view,
+                },
+                format!(
+                    "{:1$} ",
+                    row_in_view + self.offset.row,
+                    self.margin_width() - 1
+                )
+                .as_str(),
+                Color::Rgb(113, 105, 95),
+                Color::default(),
+            );
+
             if let Some(row) = self.document.row(row_in_view + self.offset.row) {
                 // let start = self.offset.col; // TODO: fix this and look at string conversion (should I pass rope slices?)
                 // let end = self.offset.col + self.viewport.width;
                 let row = row.to_string();
-                frame.write_line(
-                    row_in_view,
-                    format!("{:num_len$} {}", row_in_view + self.offset.row, row).as_str(),
-                    Color::default(),
+                frame.write(
+                    &Position {
+                        col: self.margin_width(),
+                        row: row_in_view,
+                    },
+                    &row,
+                    Color::Rgb(236, 226, 195),
                     Color::default(),
                 );
-            } else if self.cursor_position.row == row_in_view {
-                //TODO: hacky
-                frame.write_line(row_in_view, "", Color::default(), Color::default());
             } else {
-                frame.write_line(row_in_view, "~", Color::Gray, Color::default());
+                frame.write(
+                    &Position {
+                        col: 0,
+                        row: row_in_view,
+                    },
+                    "~",
+                    Color::Rgb(74, 68, 65),
+                    Color::default(),
+                );
             }
         }
     }

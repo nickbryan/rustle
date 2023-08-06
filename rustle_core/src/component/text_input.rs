@@ -128,8 +128,8 @@ impl Component for TextInput {
 impl View for TextInput {
     fn render_to(&self, frame: &mut Frame) {
         if self.value.is_empty() && !self.place_holder.is_empty() && !self.focused {
-            frame.write_line(
-                self.position.row,
+            frame.write(
+                &self.position,
                 &self.place_holder,
                 Color::default(),
                 Color::default(),
@@ -140,12 +140,7 @@ impl View for TextInput {
 
         let value = format!("{}{}", self.prompt, &self.value.clone());
 
-        frame.write_line(
-            self.position.row,
-            &value,
-            Color::default(),
-            Color::default(),
-        );
+        frame.write(&self.position, &value, Color::default(), Color::default());
 
         if self.focused {
             frame.set_cursor_position(Position::new(

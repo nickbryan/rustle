@@ -28,8 +28,11 @@ impl View for StatusBar {
         status = format!("{status}{line_indicator}");
         status.truncate(self.area.width);
 
-        frame.write_line(
-            self.area.top(),
+        frame.write(
+            &Position {
+                col: 0,
+                row: self.area.top(),
+            },
             &status,
             Color::Rgb(128, 119, 106),
             Color::Rgb(59, 56, 54),

@@ -178,17 +178,18 @@ impl Frame {
         }
     }
 
-    /// Write a line into the `Frame`. This will overwrite any Cells currently set in the `Frame`'s
+    /// Write a string into the `Frame`. This will overwrite any Cells currently set in the `Frame`'s
     /// given line. If the string does not fill the line it, the rest of the line will be cleared.
-    pub fn write_line(
+    pub fn write(
         &mut self,
-        row_number: usize,
+        position: &Position,
         string: &str,
         foreground: Color,
         background: Color,
     ) {
-        let index = self.index_of(&Position::new(0, row_number)).unwrap();
+        let index = self.index_of(position).unwrap();
 
+        // TODO: what to do about these graphemes with the rope?
         for (i, grapheme) in string[..].graphemes(true).enumerate() {
             // TODO: do we want to cap the line length here? If the line is longer than the width do we truncate?
 
