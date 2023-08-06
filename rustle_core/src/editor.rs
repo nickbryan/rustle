@@ -65,7 +65,9 @@ where
 
         let (err_tx, mut err_rx) = mpsc::channel::<Error>(1);
         let (cmd_tx, mut cmd_rx) = mpsc::channel::<Command>(1);
-        let (msg_tx, mut msg_rx) = mpsc::channel(1);
+        // TODO: this had to be increased because of the two calls in ParseCommandLineInput.
+        // Why does it need a buffer size? Should it not be async? What is causing it to block?
+        let (msg_tx, mut msg_rx) = mpsc::channel(2);
 
         // Render the initial view so that we don't have to wait for an input event to
         // see something on the screen.
@@ -121,8 +123,6 @@ where
                         if let Mode::Execute = self.mode {
                             let msg = mode::Execute::parse(&input);
 
-                            self.mode = Mode::Normal(Normal::default());
-
                             if let Some(msg) = msg {
                                  msg_tx
                                 .send(msg)
@@ -130,6 +130,11 @@ where
                                 .expect("unable to send msg on closed msg_tx channel");
                             }
                         }
+
+                        msg_tx
+                                .send(Message::EnterMode(Mode::Normal(Normal::default())))
+                                .await
+                                .expect("unable to send msg on closed msg_tx channel");
 
                         continue;
                     }

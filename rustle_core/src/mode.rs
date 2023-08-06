@@ -60,6 +60,13 @@ mod execute {
         IResult,
     };
 
+    fn open(input: &str) -> IResult<&str, Message> {
+        map(
+            separated_pair(char('e'), char(' '), many1(anychar)),
+            |(_, name)| Message::Open(name.into_iter().collect::<String>()),
+        )(input)
+    }
+
     fn quit(input: &str) -> IResult<&str, Message> {
         value(Message::Quit, all_consuming(char('q')))(input)
     }
@@ -76,7 +83,7 @@ mod execute {
     }
 
     pub fn command_for_input(input: &str) -> Option<Message> {
-        if let Ok((_, command)) = all_consuming(alt((quit, save, save_as)))(input) {
+        if let Ok((_, command)) = all_consuming(alt((open, quit, save, save_as)))(input) {
             return Some(command);
         }
 
@@ -85,7 +92,7 @@ mod execute {
 
     #[cfg(test)]
     mod tests {
-        use super::{command_for_input, quit, save, save_as};
+        use super::{command_for_input, open, quit, save, save_as};
         use crate::communication::Message;
 
         #[test]
@@ -99,6 +106,15 @@ mod execute {
             for (input, command) in tests {
                 assert_eq!(command_for_input(input), Some(command));
             }
+        }
+
+        #[test]
+        fn test_open() {
+            assert!(open("e").is_err());
+            assert_eq!(
+                open("e test.txt"),
+                Ok(("", Message::Open("test.txt".into())))
+            );
         }
 
         #[test]

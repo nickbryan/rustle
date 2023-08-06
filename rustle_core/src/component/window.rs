@@ -5,7 +5,7 @@ use crate::editor::Component;
 use crate::mode::Mode;
 use crate::render::{Frame, View};
 use crate::ui::{Position, Rect};
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 /// `Window` is the default root component for the `Editor`.
 pub struct Window {
@@ -64,6 +64,13 @@ impl Component for Window {
             }
 
             self.mode = mode;
+        }
+
+        if let Message::Open(path) = msg.clone() {
+            self.buffers.push(Buffer::new(
+                self.buffer_space(),
+                Document::from_file(path.as_str()).context("opening file")?,
+            ));
         }
 
         if let Mode::Execute = self.mode {

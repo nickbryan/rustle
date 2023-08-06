@@ -1,5 +1,8 @@
 use crate::ui::Position;
+use anyhow::Result;
 use ropey::{Rope, RopeSlice};
+use std::fs::File;
+use std::io;
 
 pub struct Document {
     text: Rope, // TODO: graphemes need handling
@@ -12,6 +15,12 @@ impl Default for Document {
 }
 
 impl Document {
+    pub fn from_file(path: &str) -> Result<Self> {
+        Ok(Self {
+            text: Rope::from_reader(&mut io::BufReader::new(File::open(path)?))?,
+        })
+    }
+
     pub fn delete(&mut self, at: &Position) {
         if at.row >= self.len() {
             return;

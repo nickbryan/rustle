@@ -25,6 +25,7 @@ pub enum Message {
     MoveCursorPageUp,
     MoveCursorPageDown,
 
+    Open(String),
     Save,
     SaveAs(String),
 
