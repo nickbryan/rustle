@@ -31,8 +31,10 @@ impl Buffer {
     }
 
     pub fn cursor_position(&self) -> Position {
+        let num_len = self.document.len().to_string().len().saturating_add(1);
+
         Position::new(
-            self.cursor_position.col.saturating_sub(self.offset.col),
+            num_len + self.cursor_position.col.saturating_sub(self.offset.col),
             self.cursor_position.row.saturating_sub(self.offset.row),
         )
     }
@@ -68,7 +70,7 @@ impl Buffer {
         let terminal_height = self.viewport.height - 2;
         let Position { col, row } = self.cursor_position;
         let height = self.document.len();
-        let width = self.document.row(row).map_or(0, |r| r.graphemes().count());
+        let width = self.document.row(row).map_or(0, |r| r.len_chars());
 
         let (col, row) = match msg {
             Message::MoveCursorUp(n) => (col, row.saturating_sub(*n)),
@@ -85,7 +87,7 @@ impl Buffer {
                 } else if row > 0 {
                     self.document
                         .row(row - 1)
-                        .map_or((0, row - 1), |r| (r.graphemes().count(), row - 1))
+                        .map_or((0, row - 1), |r| (r.len_chars(), row - 1))
                 } else {
                     (col, row)
                 }
@@ -118,7 +120,7 @@ impl Buffer {
             _ => (col, row),
         };
 
-        let new_width = self.document.row(row).map_or(0, |r| r.graphemes().count());
+        let new_width = self.document.row(row).map_or(0, |r| r.len_chars());
 
         self.cursor_position = Position {
             col: if col > new_width { new_width } else { col },
@@ -160,16 +162,19 @@ impl Component for Buffer {
 
 impl View for Buffer {
     fn render_to(&self, frame: &mut crate::render::Frame) {
-        if self.focused {
-            frame.set_cursor_position(self.cursor_position);
-        }
+        let num_len = self.document.len().to_string().len();
 
         for row_in_view in 0..self.viewport.height {
             if let Some(row) = self.document.row(row_in_view + self.offset.row) {
                 // let start = self.offset.col; // TODO: fix this and look at string conversion (should I pass rope slices?)
                 // let end = self.offset.col + self.viewport.width;
                 let row = row.to_string();
-                frame.write_line(row_in_view, &row, Color::default(), Color::default());
+                frame.write_line(
+                    row_in_view,
+                    format!("{:num_len$} {}", row_in_view + self.offset.row, row).as_str(),
+                    Color::default(),
+                    Color::default(),
+                );
             } else if self.cursor_position.row == row_in_view {
                 //TODO: hacky
                 frame.write_line(row_in_view, "", Color::default(), Color::default());

@@ -85,16 +85,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crop"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "959e53a6ca6070e1819d23930c0147cfc0de843451a3b3d78827130c00fb33d2"
-dependencies = [
- "str_indices",
- "unicode-segmentation",
-]
-
-[[package]]
 name = "crossterm"
 version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -389,6 +379,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ropey"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53ce7a2c43a32e50d666e33c5a80251b31147bb4b49024bcab11fb6f20c671ed"
+dependencies = [
+ "smallvec",
+ "str_indices",
+]
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -417,8 +417,8 @@ name = "rustle_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "crop",
  "nom",
+ "ropey",
  "thiserror",
  "tokio",
  "tokio-stream",

@@ -1,4 +1,5 @@
 use crate::xterm::Terminal;
+use anyhow::{Context, Result};
 use rustle_core::ui::{Color, Rect};
 use rustle_core::{Canvas, Cell};
 use std::io;
@@ -12,8 +13,7 @@ pub(crate) struct WebCanvas {
 }
 
 impl WebCanvas {
-    pub fn new(width: usize, height: usize, terminal: Terminal) -> Self {
-        // TODO: type the size as rect or something?
+    pub(crate) fn new(width: usize, height: usize, terminal: Terminal) -> Self {
         Self {
             width,
             height,
@@ -24,52 +24,51 @@ impl WebCanvas {
 }
 
 impl WebCanvas {
-    fn set_foreground_color(&mut self, color: Color) {
+    fn set_foreground_color(&mut self, color: Color) -> Result<()> {
         if let Color::AnsiValue(v) = color {
             self.buffer
                 .get_mut()
                 .write_all(format!("\x1B[38;5;{v}m").as_bytes())
-                .expect("buffer should be writable");
+                .context("writing ansi color value to buffer")?;
 
-            return;
+            return Ok(());
         }
 
         if let Color::Rgb(r, g, b) = color {
             self.buffer
                 .get_mut()
                 .write_all(format!("\x1B[38;2;{r};{g};{b}m").as_bytes())
-                .expect("buffer should be writable");
+                .expect("writing rgb color value to buffer");
 
-            return;
+            return Ok(());
         }
 
         self.buffer
             .get_mut()
             .write_all(format!("\x1B[{}m", color_code(color)).as_bytes())
-            .expect("buffer should be writable");
+            .context("writing color code color value to buffer")
     }
 
-    fn set_background_color(&mut self, color: Color) {
+    fn set_background_color(&mut self, color: Color) -> Result<()> {
         if let Color::AnsiValue(v) = color {
             self.buffer
                 .get_mut()
                 .write_all(format!("\x1B[48;5;{v}m").as_bytes())
-                .expect("buffer should be writable");
+                .context("writing ansi color value to buffer")?;
 
-            return;
+            return Ok(());
         }
 
         if let Color::Rgb(r, g, b) = color {
             self.buffer
                 .get_mut()
                 .write_all(format!("\x1B[48;2;{r};{g};{b}m").as_bytes())
-                .expect("buffer should be writable");
+                .context("writing rgb color value to buffer")?;
 
-            return;
+            return Ok(());
         }
 
         let mut code = color_code(color);
-
         if code > 0 {
             code += 10;
         }
@@ -77,7 +76,7 @@ impl WebCanvas {
         self.buffer
             .get_mut()
             .write_all(format!("\x1B[{code}m").as_bytes())
-            .expect("buffer should be writable");
+            .context("writing color code color value to buffer")
     }
 }
 
@@ -100,21 +99,20 @@ fn color_code(color: Color) -> usize {
         Color::LightMagenta => 95,
         Color::LightCyan => 96,
         Color::White => 97,
-        _ => unimplemented!(), // Handled above...TODO: clean this up
+        _ => unreachable!(), // Expected to be handled before this. // TODO: clean this up
     }
 }
 
 impl Canvas for WebCanvas {
-    fn clear(&mut self) -> anyhow::Result<(), IoError> {
+    fn clear(&mut self) -> Result<(), IoError> {
         self.buffer
             .get_mut()
             .write_all("\x1B[2J".as_bytes())
-            .expect("buffer should be writable");
-
-        Ok(())
+            .context("writing clear to buffer")
+            .map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))
     }
 
-    fn draw<'a, I: Iterator<Item = &'a Cell>>(&mut self, cells: I) -> anyhow::Result<(), IoError> {
+    fn draw<'a, I: Iterator<Item = &'a Cell>>(&mut self, cells: I) -> Result<(), IoError> {
         let mut prev_background = Color::Reset;
         let mut prev_foreground = Color::Reset;
 
@@ -122,13 +120,17 @@ impl Canvas for WebCanvas {
             self.position_cursor(cell.position().row, cell.position().col)?;
 
             if cell.background() != prev_background {
-                self.set_background_color(cell.background());
+                self.set_background_color(cell.background())
+                    .context("setting background color")
+                    .map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))?;
 
                 prev_background = cell.background();
             }
 
             if cell.foreground() != prev_foreground {
-                self.set_foreground_color(cell.foreground());
+                self.set_foreground_color(cell.foreground())
+                    .context("setting foreground color")
+                    .map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))?;
 
                 prev_foreground = cell.foreground();
             }
@@ -136,62 +138,61 @@ impl Canvas for WebCanvas {
             self.buffer
                 .get_mut()
                 .write_all(cell.symbol().as_bytes())
-                .expect("buffer should be writable");
+                .context("writing cell symbol to buffer")
+                .map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))?;
         }
 
-        self.set_background_color(Color::Reset);
-        self.set_foreground_color(Color::Reset);
+        self.set_background_color(Color::Reset)
+            .context("setting background color")
+            .map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))?;
+        self.set_foreground_color(Color::Reset)
+            .context("setting foreground color")
+            .map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))?;
 
         Ok(())
     }
 
-    fn flush(&mut self) -> anyhow::Result<(), IoError> {
+    fn flush(&mut self) -> Result<(), IoError> {
         self.buffer
             .get_mut()
             .flush()
-            .expect("fix these expectations");
+            .context("flushing buffer")
+            .map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))?;
 
         let s = String::from_utf8(self.buffer.replace(Vec::new()))
-            .expect("should be able to convert buffer to string");
+            .context("converting buffer tto string")
+            .map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))?;
 
         self.terminal.write(s);
 
         Ok(())
     }
 
-    fn hide_cursor(&mut self) -> anyhow::Result<(), IoError> {
+    fn hide_cursor(&mut self) -> Result<(), IoError> {
         self.buffer
             .get_mut()
             .write_all("\x1B[?25l".as_bytes())
-            .expect("buffer should be writable");
-
-        Ok(())
+            .context("writing hide cursor to buffer")
+            .map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))
     }
 
-    fn position_cursor(&mut self, row: usize, col: usize) -> anyhow::Result<(), IoError> {
-        let _x =
-            u16::try_from(col).map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))?;
-        let _y =
-            u16::try_from(row).map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))?;
-
+    fn position_cursor(&mut self, row: usize, col: usize) -> Result<(), IoError> {
         self.buffer
             .get_mut()
             .write_all(format!("\x1B[{};{}H", row + 1, col + 1).as_bytes())
-            .expect("buffer should be writable");
-
-        Ok(())
+            .context("writing position cursor to buffer")
+            .map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))
     }
 
-    fn show_cursor(&mut self) -> anyhow::Result<(), IoError> {
+    fn show_cursor(&mut self) -> Result<(), IoError> {
         self.buffer
             .get_mut()
             .write_all("\x1B[?25h".as_bytes())
-            .expect("buffer should be writable");
-
-        Ok(())
+            .context("writing show cursor to buffer")
+            .map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))
     }
 
-    fn size(&self) -> anyhow::Result<Rect, IoError> {
+    fn size(&self) -> Result<Rect, IoError> {
         Ok(Rect::new(self.width, self.height))
     }
 }

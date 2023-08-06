@@ -1,13 +1,13 @@
 use crate::ui::Position;
-use crop::{Rope, RopeSlice};
+use ropey::{Rope, RopeSlice};
 
 pub struct Document {
-    rope: Rope,
+    text: Rope, // TODO: graphemes need handling
 }
 
 impl Default for Document {
     fn default() -> Self {
-        Self { rope: Rope::new() }
+        Self { text: Rope::new() }
     }
 }
 
@@ -17,15 +17,15 @@ impl Document {
             return;
         }
 
-        self.rope.delete(
-            (self.rope.byte_of_line(at.row) + at.col)..=(self.rope.byte_of_line(at.row) + at.col),
+        self.text.remove(
+            (self.text.line_to_char(at.row) + at.col)..=(self.text.line_to_char(at.row) + at.col),
         );
     }
 
     pub fn insert(&mut self, at: &Position, ch: char) {
         //TODO: handle bounds checks here
-        self.rope
-            .insert(self.rope.byte_of_line(at.row) + at.col, ch.to_string());
+        self.text
+            .insert_char(self.text.line_to_char(at.row) + at.col, ch);
     }
 
     pub fn insert_newline(&mut self, at: &Position) {
@@ -33,19 +33,25 @@ impl Document {
             return;
         }
 
-        self.rope
-            .insert(self.rope.byte_of_line(at.row) + at.col, "\n");
+        self.text
+            .insert_char(self.text.line_to_char(at.row) + at.col, '\n');
     }
 
     pub fn row(&self, index: usize) -> Option<RopeSlice> {
-        if index >= self.rope.line_len() {
+        if index >= self.text.len_lines() {
             return None;
         }
 
-        Some(self.rope.line(index))
+        self.text.get_line(index).map(|slice| {
+            if slice.len_chars() > 0 && slice.char(slice.len_chars() - 1) == '\n' {
+                slice.slice(0..slice.len_chars() - 1)
+            } else {
+                slice
+            }
+        })
     }
 
     pub fn len(&self) -> usize {
-        self.rope.line_len()
+        self.text.len_lines()
     }
 }
