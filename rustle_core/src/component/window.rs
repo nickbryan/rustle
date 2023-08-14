@@ -14,6 +14,7 @@ pub struct Window {
     command_prompt: TextInput,
     mode: Mode,
     size: Rect,
+    msg: String,
 }
 
 impl Window {
@@ -34,6 +35,7 @@ impl Window {
             command_prompt,
             mode,
             size,
+            msg: String::new(),
         }
     }
 
@@ -49,6 +51,8 @@ impl Window {
 
 impl Component for Window {
     fn update(&mut self, msg: Message) -> Result<Option<Command>> {
+        self.msg = format!("{:?}", msg);
+
         if let Message::EnterMode(mode) = msg.clone() {
             if let Mode::Insert = mode {
                 if self.buffers.is_empty() {
@@ -115,7 +119,7 @@ impl View for Window {
             mode: self.mode.to_string(),
             line_count: len,
             cursor_position: frame.cursor_position(),
-            file_name: String::new(),
+            file_name: self.msg.clone(),
         }
         .render_to(frame);
 

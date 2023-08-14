@@ -8,6 +8,7 @@ mod input;
 mod mode;
 mod render;
 
+mod cursor;
 pub mod ui;
 
 pub use editor::Editor;

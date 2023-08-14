@@ -7,6 +7,17 @@ use anyhow::{Error, Result};
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 
+// TODO: figure out grapheme handling, it is based on chars, 2 chars = 1 flag. Need to figure out how
+// the selection, range and movement will work with grapheme boundaries. Is this the documents job,
+// should it control the cursor?
+// TODO: refactor the window component to use layouts. Lift the work of window into editor and have
+// editor use the window API to open buffers etc.
+// TODO: refactor storage to be abstract so that it works on web and terminal.
+// TODO: convert line numbers into a widget
+// TODO: review and refactor all code for correctness
+// TODO: write tests for existing code
+// TODO: implement selections
+
 /// `Component` is the foundation for all interactivity within the `Editor`. You can view it as the
 /// model in elm architecture.
 pub trait Component {

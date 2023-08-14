@@ -167,85 +167,66 @@ impl From<KeyEvent> for Key {
     fn from(event: KeyEvent) -> Self {
         match event {
             KeyEvent {
-                modifiers: KeyModifiers::NONE,
                 code: KeyCode::Enter,
                 ..
             } => Key(CoreKey::Enter),
             KeyEvent {
-                modifiers: KeyModifiers::NONE,
-                code: KeyCode::Tab,
-                ..
+                code: KeyCode::Tab, ..
             } => Key(CoreKey::Tab),
             KeyEvent {
-                modifiers: KeyModifiers::NONE,
                 code: KeyCode::Backspace,
                 ..
             } => Key(CoreKey::Backspace),
             KeyEvent {
-                modifiers: KeyModifiers::NONE,
-                code: KeyCode::Esc,
-                ..
+                code: KeyCode::Esc, ..
             } => Key(CoreKey::Esc),
             KeyEvent {
-                modifiers: KeyModifiers::NONE,
                 code: KeyCode::Left,
                 ..
             } => Key(CoreKey::Left),
             KeyEvent {
-                modifiers: KeyModifiers::NONE,
                 code: KeyCode::Right,
                 ..
             } => Key(CoreKey::Right),
             KeyEvent {
-                modifiers: KeyModifiers::NONE,
                 code: KeyCode::Down,
                 ..
             } => Key(CoreKey::Down),
             KeyEvent {
-                modifiers: KeyModifiers::NONE,
-                code: KeyCode::Up,
-                ..
+                code: KeyCode::Up, ..
             } => Key(CoreKey::Up),
             KeyEvent {
-                modifiers: KeyModifiers::NONE,
                 code: KeyCode::Insert,
                 ..
             } => Key(CoreKey::Insert),
             KeyEvent {
-                modifiers: KeyModifiers::NONE,
                 code: KeyCode::Delete,
                 ..
             } => Key(CoreKey::Delete),
             KeyEvent {
-                modifiers: KeyModifiers::NONE,
                 code: KeyCode::Home,
                 ..
             } => Key(CoreKey::Home),
             KeyEvent {
-                modifiers: KeyModifiers::NONE,
-                code: KeyCode::End,
-                ..
+                code: KeyCode::End, ..
             } => Key(CoreKey::End),
             KeyEvent {
-                modifiers: KeyModifiers::NONE,
                 code: KeyCode::PageUp,
                 ..
             } => Key(CoreKey::PageUp),
             KeyEvent {
-                modifiers: KeyModifiers::NONE,
                 code: KeyCode::PageDown,
                 ..
             } => Key(CoreKey::PageDown),
-            KeyEvent {
-                modifiers: KeyModifiers::NONE,
-                code: KeyCode::Char(ch),
-                ..
-            } => Key(CoreKey::Char(ch)),
             KeyEvent {
                 modifiers: KeyModifiers::CONTROL,
                 code: KeyCode::Char(ch),
                 ..
             } => Key(CoreKey::Ctrl(ch)),
+            KeyEvent {
+                code: KeyCode::Char(ch),
+                ..
+            } => Key(CoreKey::Char(ch)),
             _ => Key(CoreKey::Unknown),
         }
     }

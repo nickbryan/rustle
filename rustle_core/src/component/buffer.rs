@@ -71,7 +71,7 @@ impl Buffer {
         let (col, row) = match msg {
             Message::MoveCursorUp(n) => (col, row.saturating_sub(*n)),
             Message::MoveCursorDown(n) => {
-                if row < height {
+                if row.saturating_add(*n) < height {
                     (col, row.saturating_add(*n))
                 } else {
                     (col, row)
