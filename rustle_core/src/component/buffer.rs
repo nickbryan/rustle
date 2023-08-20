@@ -1,3 +1,4 @@
+use crate::document::Direction;
 use crate::{
     communication::{Command, Message},
     document::Document,
@@ -10,7 +11,7 @@ use anyhow::Result;
 pub struct Buffer {
     cursor_position: Position,
     document: Document,
-    offset: Position,
+    pub offset: Position,
     viewport: Rect,
 }
 
@@ -42,86 +43,58 @@ impl Buffer {
 
         let offset = if row < self.offset.row {
             (self.offset.col, row)
-        } else if col >= self.offset.col.saturating_add(height) {
+        } else if row < self.offset.row + 5 {
+            (self.offset.col, self.offset.row.saturating_sub(1))
+        } else if row >= self.offset.row.saturating_add(height - 5) {
             (
-                self.offset.row,
-                col.saturating_sub(height).saturating_add(1),
+                self.offset.col,
+                row.saturating_sub(height - 5).saturating_add(1),
             )
         } else {
             (self.offset.col, self.offset.row)
         };
 
-        let offset = if col < self.offset.col {
+        let offset = if row < self.offset.row {
             (col, offset.1)
-        } else if col >= self.offset.col.saturating_add(width) {
-            (col.saturating_add(width).saturating_add(1), offset.1)
+        } else if col < self.offset.col + 5 {
+            (self.offset.col.saturating_sub(1), offset.1)
+        } else if col >= self.offset.col.saturating_add(width - 5) {
+            (col.saturating_sub(height - 5).saturating_add(1), offset.1)
         } else {
-            (self.offset.col, offset.1)
+            (self.offset.col, self.offset.row)
         };
 
         self.offset = Position::from(offset);
     }
 
     fn move_cursor(&mut self, msg: &Message) {
-        let terminal_height = self.viewport.height - 2;
-        let Position { col, row } = self.cursor_position;
-        let height = self.document.len();
-        let width = self.document.row(row).map_or(0, |r| r.len_chars());
-
-        let (col, row) = match msg {
-            Message::MoveCursorUp(n) => (col, row.saturating_sub(*n)),
+        match msg {
+            Message::MoveCursorUp(n) => {
+                self.document
+                    .move_cursor_vertically(Direction::Backward(*n));
+            }
             Message::MoveCursorDown(n) => {
-                if row.saturating_add(*n) < height {
-                    (col, row.saturating_add(*n))
-                } else {
-                    (col, row)
-                }
+                self.document.move_cursor_vertically(Direction::Forward(*n));
             }
             Message::MoveCursorLeft(n) => {
-                if col > 0 {
-                    (col - n, row)
-                } else if row > 0 {
-                    self.document
-                        .row(row - 1)
-                        .map_or((0, row - 1), |r| (r.len_chars(), row - 1))
-                } else {
-                    (col, row)
-                }
+                self.document
+                    .move_cursor_horizontally(Direction::Backward(*n));
             }
             Message::MoveCursorRight(n) => {
-                if col < width {
-                    (col + n, row)
-                } else if row < height {
-                    (0, row + n)
-                } else {
-                    (col, row)
-                }
+                self.document
+                    .move_cursor_horizontally(Direction::Forward(*n));
             }
             Message::MoveCursorPageUp => {
-                if row > terminal_height {
-                    (col, row - terminal_height)
-                } else {
-                    (col, 0)
-                }
+                self.document.move_cursor_vertically(Direction::Backward(1));
             }
             Message::MoveCursorPageDown => {
-                if row.saturating_add(terminal_height) < height {
-                    (col, row + terminal_height)
-                } else {
-                    (col, height)
-                }
+                self.document.move_cursor_vertically(Direction::Forward(1));
             }
-            Message::MoveCursorLineStart => (0, row),
-            Message::MoveCursorLineEnd => (width, row),
-            _ => (col, row),
+            Message::MoveCursorLineStart | Message::MoveCursorLineEnd => {}
+            _ => {}
         };
 
-        let new_width = self.document.row(row).map_or(0, |r| r.len_chars());
-
-        self.cursor_position = Position {
-            col: if col > new_width { new_width } else { col },
-            row,
-        };
+        self.cursor_position = self.document.cursor_coordinates();
     }
 
     fn margin_width(&self) -> usize {
@@ -138,12 +111,12 @@ impl Component for Buffer {
     fn update(&mut self, msg: Message) -> Result<Option<Command>> {
         match msg {
             Message::InsertChar(ch) => {
-                self.document.insert(&self.cursor_position, ch);
+                self.document.insert(ch);
 
                 self.move_cursor(&Message::MoveCursorRight(1));
             }
             Message::InsertLineBreak => {
-                self.document.insert_newline(&self.cursor_position);
+                self.document.insert_newline();
                 self.move_cursor(&Message::MoveCursorDown(1));
                 self.move_cursor(&Message::MoveCursorLineStart);
             }
@@ -175,18 +148,20 @@ impl View for Buffer {
                 },
                 format!(
                     "{:1$} ",
-                    row_in_view + self.offset.row,
-                    self.margin_width() - 1
+                    (row_in_view + self.offset.row).saturating_add(1),
+                    self.margin_width().saturating_sub(1)
                 )
                 .as_str(),
                 Color::Rgb(113, 105, 95),
                 Color::default(),
             );
 
-            if let Some(row) = self.document.row(row_in_view + self.offset.row) {
+            if let Some(row) = self.document.line(row_in_view + self.offset.row) {
                 // let start = self.offset.col; // TODO: fix this and look at string conversion (should I pass rope slices?)
                 // let end = self.offset.col + self.viewport.width;
-                let row = row.to_string();
+                let row = row
+                    .slice(0..self.viewport.width.min(row.len_chars()))
+                    .to_string();
                 frame.write(
                     &Position {
                         col: self.margin_width(),

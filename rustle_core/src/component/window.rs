@@ -6,6 +6,8 @@ use crate::mode::Mode;
 use crate::render::{Frame, View};
 use crate::ui::{Position, Rect};
 use anyhow::{Context, Result};
+use std::fs::File;
+use std::io;
 
 /// `Window` is the default root component for the `Editor`.
 pub struct Window {
@@ -51,8 +53,6 @@ impl Window {
 
 impl Component for Window {
     fn update(&mut self, msg: Message) -> Result<Option<Command>> {
-        self.msg = format!("{:?}", msg);
-
         if let Message::EnterMode(mode) = msg.clone() {
             if let Mode::Insert = mode {
                 if self.buffers.is_empty() {
@@ -73,7 +73,8 @@ impl Component for Window {
         if let Message::Open(path) = msg.clone() {
             self.buffers.push(Buffer::new(
                 self.buffer_space(),
-                Document::from_file(path.as_str()).context("opening file")?,
+                Document::from(&mut io::BufReader::new(File::open(path.as_str())?))
+                    .context("opening file")?,
             ));
         }
 
@@ -82,7 +83,13 @@ impl Component for Window {
         }
 
         if !self.buffers.is_empty() {
-            return self.buffers[self.active_buffer_idx].update(msg);
+            let cmd = self.buffers[self.active_buffer_idx].update(msg);
+            self.msg = format!(
+                "{:?} | {:?}",
+                self.buffers[self.active_buffer_idx].cursor_position(),
+                self.buffers[self.active_buffer_idx].offset
+            );
+            return cmd;
         }
 
         Ok(None)

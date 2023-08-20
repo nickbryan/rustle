@@ -3,6 +3,7 @@ use anyhow::Result;
 use std::io::Error as IoError;
 use thiserror::Error;
 use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
 
 /// Canvas is an interface to the ui. It could be the terminal or web ui.
 pub trait Canvas {
@@ -187,30 +188,61 @@ impl Frame {
         foreground: Color,
         background: Color,
     ) {
-        let index = self.index_of(position).unwrap();
+        let str_start = self.index_of(position).unwrap();
+        let mut cursor = str_start;
 
-        // TODO: what to do about these graphemes with the rope?
-        for (i, grapheme) in string[..].graphemes(true).enumerate() {
-            // TODO: do we want to cap the line length here? If the line is longer than the width do we truncate?
-
-            let cell_idx = index + i;
-            self.cells[cell_idx] = Cell::new(
-                self.cells[cell_idx].position.col,
-                self.cells[cell_idx].position.row,
+        // TODO: do we want to cap the line length here? If the line is longer than the width do we truncate?
+        for (_, grapheme) in string[..]
+            .graphemes(true)
+            .take(self.area.width - position.col)
+            .enumerate()
+        {
+            self.cells[cursor] = Cell::new(
+                self.cells[cursor].position.col,
+                self.cells[cursor].position.row,
                 grapheme,
                 foreground,
                 background,
             );
+
+            cursor += grapheme_width(grapheme);
         }
 
-        for i in index + string[..].graphemes(true).count()..index + self.area.width {
-            self.cells[i].reset();
+        for i in cursor..str_start + self.area.width {
+            if self.cells.get(i).is_some() {
+                self.cells[i].reset();
+            }
         }
     }
 
     /// Set the cursor position for the final frame render.
     pub fn set_cursor_position(&mut self, position: Position) {
         self.cursor_position = position;
+    }
+}
+
+pub fn grapheme_width(g: &str) -> usize {
+    if g.as_bytes()[0] <= 127 {
+        // Fast-path ascii.
+        // Point 1: theoretically, ascii control characters should have zero
+        // width, but in our case we actually want them to have width: if they
+        // show up in text, we want to treat them as textual elements that can
+        // be edited.  So we can get away with making all ascii single width
+        // here.
+        // Point 2: we're only examining the first codepoint here, which means
+        // we're ignoring graphemes formed with combining characters.  However,
+        // if it starts with ascii, it's going to be a single-width grapeheme
+        // regardless, so, again, we can get away with that here.
+        // Point 3: we're only examining the first _byte_.  But for utf8, when
+        // checking for ascii range values only, that works.
+        1
+    } else {
+        // We use max(1) here because all grapeheme clusters--even illformed
+        // ones--should have at least some width so they can be edited
+        // properly.
+        // TODO properly handle unicode width for all codepoints
+        // example of where unicode width is currently wrong: 🤦🏼‍♂️ (taken from https://hsivonen.fi/string-length/)
+        UnicodeWidthStr::width(g).max(1)
     }
 }
 
