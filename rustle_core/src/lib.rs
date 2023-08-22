@@ -9,6 +9,7 @@ mod mode;
 mod render;
 
 mod cursor;
+mod graphemes;
 pub mod ui;
 
 pub use editor::Editor;

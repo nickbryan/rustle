@@ -38,33 +38,30 @@ impl Buffer {
 
     pub fn scroll(&mut self) {
         let Position { col, row } = self.cursor_position;
-        let width = self.viewport.width;
+        let width = self.viewport.width - self.margin_width();
         let height = self.viewport.height - 2;
 
-        let offset = if row < self.offset.row {
-            (self.offset.col, row)
+        let offset_row = if row < self.offset.row {
+            row
         } else if row < self.offset.row + 5 {
-            (self.offset.col, self.offset.row.saturating_sub(1))
+            self.offset.row.saturating_sub(1)
         } else if row >= self.offset.row.saturating_add(height - 5) {
-            (
-                self.offset.col,
-                row.saturating_sub(height - 5).saturating_add(1),
-            )
+            row.saturating_sub(height - 5).saturating_add(1)
         } else {
-            (self.offset.col, self.offset.row)
+            self.offset.row
         };
 
-        let offset = if row < self.offset.row {
-            (col, offset.1)
+        let offset_col = if col < self.offset.col {
+            col.saturating_sub(5)
         } else if col < self.offset.col + 5 {
-            (self.offset.col.saturating_sub(1), offset.1)
+            self.offset.col.saturating_sub(1)
         } else if col >= self.offset.col.saturating_add(width - 5) {
-            (col.saturating_sub(height - 5).saturating_add(1), offset.1)
+            col.saturating_sub(width - 5).saturating_add(1)
         } else {
-            (self.offset.col, self.offset.row)
+            self.offset.col
         };
 
-        self.offset = Position::from(offset);
+        self.offset = Position::new(offset_col, offset_row);
     }
 
     fn move_cursor(&mut self, msg: &Message) {
@@ -157,20 +154,20 @@ impl View for Buffer {
             );
 
             if let Some(row) = self.document.line(row_in_view + self.offset.row) {
-                // let start = self.offset.col; // TODO: fix this and look at string conversion (should I pass rope slices?)
-                // let end = self.offset.col + self.viewport.width;
-                let row = row
-                    .slice(0..self.viewport.width.min(row.len_chars()))
-                    .to_string();
-                frame.write(
-                    &Position {
-                        col: self.margin_width(),
-                        row: row_in_view,
-                    },
-                    &row,
-                    Color::Rgb(236, 226, 195),
-                    Color::default(),
-                );
+                let start = self.offset.col;
+                if start <= row.len_chars() {
+                    let end = start + self.viewport.width;
+                    let row = row.slice(start..end.min(row.len_chars())).to_string();
+                    frame.write(
+                        &Position {
+                            col: self.margin_width(),
+                            row: row_in_view,
+                        },
+                        &row,
+                        Color::Rgb(236, 226, 195),
+                        Color::default(),
+                    );
+                }
             } else {
                 frame.write(
                     &Position {
