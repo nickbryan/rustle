@@ -8,36 +8,42 @@ use crate::{
 };
 use anyhow::Result;
 
-pub struct Buffer {
-    cursor_position: Position,
+pub(crate) struct Buffer {
     document: Document,
     pub offset: Position,
     viewport: Rect,
 }
 
 impl Buffer {
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.document.len()
     }
 
-    pub fn new(viewport: Rect, document: Document) -> Self {
+    pub(crate) fn new(viewport: Rect, document: Document) -> Self {
         Self {
-            cursor_position: Position::default(),
             document,
             offset: Position::default(),
             viewport,
         }
     }
 
-    pub fn cursor_position(&self) -> Position {
+    pub(crate) fn cursor_position(&self) -> Position {
         Position::new(
-            self.margin_width() + self.cursor_position.col.saturating_sub(self.offset.col),
-            self.cursor_position.row.saturating_sub(self.offset.row),
+            self.margin_width()
+                + self
+                    .document
+                    .cursor_coordinates()
+                    .col
+                    .saturating_sub(self.offset.col),
+            self.document
+                .cursor_coordinates()
+                .row
+                .saturating_sub(self.offset.row),
         )
     }
 
-    pub fn scroll(&mut self) {
-        let Position { col, row } = self.cursor_position;
+    pub(crate) fn scroll(&mut self) {
+        let Position { col, row } = self.document.cursor_coordinates();
         let width = self.viewport.width - self.margin_width();
         let height = self.viewport.height - 2;
 
@@ -82,16 +88,19 @@ impl Buffer {
                     .move_cursor_horizontally(Direction::Forward(*n));
             }
             Message::MoveCursorPageUp => {
-                self.document.move_cursor_vertically(Direction::Backward(1));
+                self.document
+                    .move_cursor_vertically(Direction::Backward(self.viewport.height));
             }
             Message::MoveCursorPageDown => {
-                self.document.move_cursor_vertically(Direction::Forward(1));
+                self.document
+                    .move_cursor_vertically(Direction::Forward(self.viewport.height));
             }
-            Message::MoveCursorLineStart | Message::MoveCursorLineEnd => {}
+            Message::MoveCursorLineStart => self.document.move_cursor_to_line_start(),
+            Message::MoveCursorLineEnd => self.document.move_cursor_to_line_end(),
             _ => {}
         };
 
-        self.cursor_position = self.document.cursor_coordinates();
+        self.scroll();
     }
 
     fn margin_width(&self) -> usize {
@@ -107,29 +116,14 @@ impl Buffer {
 impl Component for Buffer {
     fn update(&mut self, msg: Message) -> Result<Option<Command>> {
         match msg {
-            Message::InsertChar(ch) => {
-                self.document.insert(ch);
-
-                self.move_cursor(&Message::MoveCursorRight(1));
-            }
-            Message::InsertLineBreak => {
-                self.document.insert_newline();
-                self.move_cursor(&Message::MoveCursorDown(1));
-                self.move_cursor(&Message::MoveCursorLineStart);
-            }
-            Message::DeleteCharForward => self.document.delete(&self.cursor_position),
-            Message::DeleteCharBackward => {
-                if self.cursor_position.col > 0 || self.cursor_position.row > 0 {
-                    self.move_cursor(&Message::MoveCursorLeft(1));
-                    self.document.delete(&self.cursor_position);
-                }
-            }
+            Message::InsertChar(ch) => self.document.insert(ch),
+            Message::InsertLineBreak => self.document.insert_newline(),
+            Message::DeleteCharForward => self.document.delete(Direction::Forward(1)),
+            Message::DeleteCharBackward => self.document.delete(Direction::Backward(1)),
             _ => {
                 self.move_cursor(&msg);
             }
         };
-
-        self.scroll();
 
         Ok(None)
     }

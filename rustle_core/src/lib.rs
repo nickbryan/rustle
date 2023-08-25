@@ -8,7 +8,6 @@ mod input;
 mod mode;
 mod render;
 
-mod cursor;
 mod graphemes;
 pub mod ui;
 
