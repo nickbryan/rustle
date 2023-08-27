@@ -1,10 +1,8 @@
-use crate::graphemes::{nth_next_grapheme_boundary, nth_prev_grapheme_boundary};
-use crate::render;
+use crate::graphemes::RopeExt;
 use crate::ui::Position;
 use anyhow::{Context, Result};
 use ropey::{Rope, RopeSlice};
 use std::io::Read;
-use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Debug, Copy, Clone)]
 pub(crate) enum Direction {
@@ -20,7 +18,7 @@ pub(crate) struct Selection {
 
 #[derive(Debug, Default)]
 pub(crate) struct Document {
-    text: Rope, // TODO: graphemes need handling
+    text: Rope,
     selection: Selection,
     desired_visual_col: usize,
 }
@@ -40,56 +38,33 @@ impl Document {
     }
 
     pub(crate) fn cursor_coordinates(&self) -> Position {
-        let mut cursor = 0;
-
-        for (_, grapheme) in self
-            .text
-            .slice(
-                self.text
-                    .line_to_char(self.text.char_to_line(self.selection.head))
-                    ..self.selection.head,
-            )
-            .to_string()
-            .graphemes(true)
-            .enumerate()
-        {
-            cursor += render::grapheme_width(grapheme);
-        }
-
-        Position::new(cursor, self.text.char_to_line(self.selection.head))
+        Position::new(
+            self.text.visual_column_position(self.selection.head),
+            self.text.char_to_line(self.selection.head),
+        )
     }
 
     pub(crate) fn move_cursor_horizontally(&mut self, direction: Direction) {
         match direction {
             Direction::Forward(chars) => {
-                self.selection.head =
-                    nth_next_grapheme_boundary(self.text.slice(..), self.selection.head, chars);
-                self.selection.anchor =
-                    nth_next_grapheme_boundary(self.text.slice(..), self.selection.anchor, chars);
+                self.selection.head = self
+                    .text
+                    .nth_next_grapheme_boundary(self.selection.head, chars);
+                self.selection.anchor = self
+                    .text
+                    .nth_next_grapheme_boundary(self.selection.anchor, chars);
             }
             Direction::Backward(chars) => {
-                self.selection.head =
-                    nth_prev_grapheme_boundary(self.text.slice(..), self.selection.head, chars);
-                self.selection.anchor =
-                    nth_prev_grapheme_boundary(self.text.slice(..), self.selection.anchor, chars);
+                self.selection.head = self
+                    .text
+                    .nth_prev_grapheme_boundary(self.selection.head, chars);
+                self.selection.anchor = self
+                    .text
+                    .nth_prev_grapheme_boundary(self.selection.anchor, chars);
             }
         };
 
-        let mut cursor = 0;
-        let current_line = self.text.char_to_line(self.selection.head);
-        let current_line_start_idx = self.text.line_to_char(current_line);
-
-        for (_, grapheme) in self
-            .text
-            .slice(current_line_start_idx..self.selection.head)
-            .to_string()
-            .graphemes(true)
-            .enumerate()
-        {
-            cursor += render::grapheme_width(grapheme);
-        }
-
-        self.desired_visual_col = cursor;
+        self.desired_visual_col = self.text.visual_column_position(self.selection.head);
     }
 
     pub(crate) fn move_cursor_vertically(&mut self, direction: Direction) {
@@ -100,35 +75,14 @@ impl Document {
                 let target_line = current_line
                     .saturating_add(lines)
                     .min(self.text.len_lines().saturating_sub(1));
-                let target_line_start_idx = self.text.line_to_char(target_line);
 
-                let mut cursor = target_line_start_idx;
+                self.selection.head = self.text.line_to_char(target_line);
 
                 if self.desired_visual_col > 0 {
-                    let mut visual_width_moved = 0;
-                    for (_, grapheme) in self
+                    self.selection.head = self
                         .text
-                        .line(target_line)
-                        .to_string()
-                        .graphemes(true)
-                        .enumerate()
-                    {
-                        let grapheme_visual_width = render::grapheme_width(grapheme);
-                        if visual_width_moved + grapheme_visual_width > self.desired_visual_col {
-                            break;
-                        }
-
-                        visual_width_moved += grapheme_visual_width;
-
-                        cursor = nth_next_grapheme_boundary(self.text.slice(..), cursor, 1);
-
-                        if self.desired_visual_col < visual_width_moved {
-                            cursor = nth_prev_grapheme_boundary(self.text.slice(..), cursor, 1);
-                        }
-                    }
+                        .visual_column_position_to_char_idx(target_line, self.desired_visual_col);
                 }
-
-                self.selection.head = cursor;
 
                 if target_line.saturating_add(1) < self.text.len_lines() {
                     self.selection.head = self.selection.head.min(
@@ -143,35 +97,16 @@ impl Document {
             Direction::Backward(lines) => {
                 let current_line = self.text.char_to_line(self.selection.head);
                 let target_line = current_line.saturating_sub(lines);
-                let target_line_start_idx = self.text.line_to_char(target_line);
 
-                let mut cursor = target_line_start_idx;
+                self.selection.head = self.text.line_to_char(target_line);
 
                 if self.desired_visual_col > 0 {
-                    let mut visual_width_moved = 0;
-                    for (_, grapheme) in self
+                    self.selection.head = self
                         .text
-                        .line(target_line)
-                        .to_string()
-                        .graphemes(true)
-                        .enumerate()
-                    {
-                        let grapheme_visual_width = render::grapheme_width(grapheme);
-                        if visual_width_moved + grapheme_visual_width > self.desired_visual_col {
-                            break;
-                        }
-
-                        visual_width_moved += grapheme_visual_width;
-
-                        cursor = nth_next_grapheme_boundary(self.text.slice(..), cursor, 1);
-
-                        if self.desired_visual_col < visual_width_moved {
-                            cursor = nth_prev_grapheme_boundary(self.text.slice(..), cursor, 1);
-                        }
-                    }
+                        .visual_column_position_to_char_idx(target_line, self.desired_visual_col);
                 }
 
-                self.selection.head = cursor.min(
+                self.selection.head = self.selection.head.min(
                     self.text
                         .line_to_char(target_line.saturating_add(1))
                         .saturating_sub(1),
@@ -187,54 +122,25 @@ impl Document {
             .line_to_char(self.text.char_to_line(self.selection.head));
         self.selection.anchor = self.selection.head;
 
-        let mut cursor = 0;
-        let current_line = self.text.char_to_line(self.selection.head);
-        let current_line_start_idx = self.text.line_to_char(current_line);
-
-        for (_, grapheme) in self
-            .text
-            .slice(current_line_start_idx..self.selection.head)
-            .to_string()
-            .graphemes(true)
-            .enumerate()
-        {
-            cursor += render::grapheme_width(grapheme);
-        }
-
-        self.desired_visual_col = cursor;
+        self.desired_visual_col = self.text.visual_column_position(self.selection.head);
     }
 
     pub(crate) fn move_cursor_to_line_end(&mut self) {
-        self.selection.head = nth_prev_grapheme_boundary(
-            self.text.slice(..),
+        self.selection.head = self.text.prev_grapheme_boundary(
             self.text
                 .line_to_char(self.text.char_to_line(self.selection.head) + 1),
-            1,
         );
         self.selection.anchor = self.selection.head;
-
-        let mut cursor = 0;
-        let current_line = self.text.char_to_line(self.selection.head);
-        let current_line_start_idx = self.text.line_to_char(current_line);
-
-        for (_, grapheme) in self
-            .text
-            .slice(current_line_start_idx..self.selection.head)
-            .to_string()
-            .graphemes(true)
-            .enumerate()
-        {
-            cursor += render::grapheme_width(grapheme);
-        }
-
-        self.desired_visual_col = cursor;
+        self.desired_visual_col = self.text.visual_column_position(self.selection.head);
     }
 
     pub(crate) fn delete(&mut self, direction: Direction) {
         match direction {
             Direction::Forward(chars) => self.text.remove(
                 self.selection.head
-                    ..nth_next_grapheme_boundary(self.text.slice(..), self.selection.head, chars),
+                    ..self
+                        .text
+                        .nth_next_grapheme_boundary(self.selection.head, chars),
             ),
             Direction::Backward(chars) => {
                 let start = self.selection.head;
@@ -278,7 +184,7 @@ mod tests {
     struct FileNotFoundReader;
 
     impl Read for FileNotFoundReader {
-        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
             Err(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
                 "file not found",
@@ -722,5 +628,14 @@ mod tests {
         assert_eq!(document.cursor_coordinates(), Position::new(5, 0));
         document.move_cursor_vertically(Direction::Forward(2));
         assert_eq!(document.cursor_coordinates(), Position::new(5, 2));
+    }
+
+    #[test]
+    fn document_line() {
+        let document = Document::from("hello\n\nworld".as_bytes()).unwrap();
+        assert_eq!(document.line(0).unwrap(), RopeSlice::from("hello"));
+        assert_eq!(document.line(1).unwrap(), RopeSlice::from(""));
+        assert_eq!(document.line(2).unwrap(), RopeSlice::from("world"));
+        assert_eq!(document.line(3), None);
     }
 }

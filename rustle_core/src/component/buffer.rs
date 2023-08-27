@@ -15,16 +15,16 @@ pub(crate) struct Buffer {
 }
 
 impl Buffer {
-    pub(crate) fn len(&self) -> usize {
-        self.document.len()
-    }
-
     pub(crate) fn new(viewport: Rect, document: Document) -> Self {
         Self {
             document,
             offset: Position::default(),
             viewport,
         }
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.document.len()
     }
 
     pub(crate) fn cursor_position(&self) -> Position {
