@@ -69,7 +69,6 @@ impl Document {
 
     pub(crate) fn move_cursor_vertically(&mut self, direction: Direction) {
         match direction {
-            // Down.
             Direction::Forward(lines) => {
                 let current_line = self.text.char_to_line(self.selection.head);
                 let target_line = current_line
@@ -93,7 +92,6 @@ impl Document {
                 }
                 self.selection.anchor = self.selection.head;
             }
-            // Up
             Direction::Backward(lines) => {
                 let current_line = self.text.char_to_line(self.selection.head);
                 let target_line = current_line.saturating_sub(lines);
