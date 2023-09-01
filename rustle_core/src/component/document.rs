@@ -1,4 +1,8 @@
+use crate::communication::{Command, Message};
+use crate::editor::Component;
 use crate::graphemes::RopeExt;
+use crate::render::View;
+use crate::ui::{Color, Position, Rect};
 use anyhow::{Context, Result};
 use ropey::{Rope, RopeSlice};
 use std::io::Read;
@@ -32,15 +36,30 @@ pub(crate) struct Document {
     text: Rope,
     selection: Selection,
     desired_visual_col: usize,
+    cursor_offset: Cursor,
+    viewport: Rect,
 }
 
 impl Document {
+    // TODO: test
+    pub(crate) fn new(viewport: Rect) -> Self {
+        Self {
+            text: Rope::default(),
+            selection: Selection::default(),
+            desired_visual_col: 0,
+            viewport,
+            cursor_offset: Cursor::default(),
+        }
+    }
+
     // TODO: test REsult
-    pub(crate) fn from(reader: impl Read) -> Result<Self> {
+    pub(crate) fn from(viewport: Rect, reader: impl Read) -> Result<Self> {
         Ok(Self {
             text: Rope::from_reader(reader).context("creating rope from reader")?,
             selection: Selection::default(),
             desired_visual_col: 0,
+            viewport,
+            cursor_offset: Cursor::default(),
         })
     }
 
@@ -48,14 +67,14 @@ impl Document {
         self.text.len_lines()
     }
 
-    pub(crate) fn cursor(&self) -> Cursor {
+    fn cursor(&self) -> Cursor {
         Cursor::new(
             self.text.visual_column_position(self.selection.head),
             self.text.char_to_line(self.selection.head),
         )
     }
 
-    pub(crate) fn move_cursor_horizontally(&mut self, direction: Direction) {
+    fn move_cursor_horizontally(&mut self, direction: Direction) {
         match direction {
             Direction::Forward(chars) => {
                 self.selection.head = self
@@ -78,7 +97,7 @@ impl Document {
         self.desired_visual_col = self.text.visual_column_position(self.selection.head);
     }
 
-    pub(crate) fn move_cursor_vertically(&mut self, direction: Direction) {
+    fn move_cursor_vertically(&mut self, direction: Direction) {
         match direction {
             Direction::Forward(lines) => {
                 let current_line = self.text.char_to_line(self.selection.head);
@@ -125,7 +144,7 @@ impl Document {
         };
     }
 
-    pub(crate) fn move_cursor_to_line_start(&mut self) {
+    fn move_cursor_to_line_start(&mut self) {
         self.selection.head = self
             .text
             .line_to_char(self.text.char_to_line(self.selection.head));
@@ -134,7 +153,7 @@ impl Document {
         self.desired_visual_col = self.text.visual_column_position(self.selection.head);
     }
 
-    pub(crate) fn move_cursor_to_line_end(&mut self) {
+    fn move_cursor_to_line_end(&mut self) {
         self.selection.head = self.text.prev_grapheme_boundary(
             self.text
                 .line_to_char(self.text.char_to_line(self.selection.head) + 1),
@@ -143,7 +162,7 @@ impl Document {
         self.desired_visual_col = self.text.visual_column_position(self.selection.head);
     }
 
-    pub(crate) fn delete(&mut self, direction: Direction) {
+    fn delete(&mut self, direction: Direction) {
         match direction {
             Direction::Forward(chars) => self.text.remove(
                 self.selection.head
@@ -159,17 +178,17 @@ impl Document {
         };
     }
 
-    pub(crate) fn insert(&mut self, ch: char) {
+    fn insert(&mut self, ch: char) {
         self.text.insert_char(self.selection.head, ch);
         self.move_cursor_horizontally(Direction::Forward(1));
     }
 
-    pub(crate) fn insert_newline(&mut self) {
+    fn insert_newline(&mut self) {
         self.insert('\n');
     }
 
     // TODO: test
-    pub(crate) fn line(&self, line_number: usize) -> Option<RopeSlice> {
+    fn line(&self, line_number: usize) -> Option<RopeSlice> {
         if line_number >= self.text.len_lines() {
             // TODO: panic instead of option if bounds check fails?
             return None;
@@ -182,6 +201,160 @@ impl Document {
                 slice
             }
         })
+    }
+
+    // TODO ------
+
+    pub(crate) fn cursor_position(&self) -> Position {
+        Position::new(
+            self.margin_width().saturating_add(
+                self.cursor()
+                    .col
+                    .saturating_sub(self.cursor_offset.col)
+                    .try_into()
+                    .unwrap(),
+            ),
+            self.cursor()
+                .row
+                .saturating_sub(self.cursor_offset.row)
+                .try_into()
+                .unwrap(),
+        )
+    }
+
+    pub(crate) fn scroll(&mut self) {
+        let Cursor { col, row } = self.cursor();
+        let width = self.viewport.width - self.margin_width();
+        let height = self.viewport.height;
+
+        let offset_row = if row < self.cursor_offset.row {
+            row
+        } else if row < self.cursor_offset.row.saturating_add(5) {
+            self.cursor_offset.row.saturating_sub(1)
+        } else if row
+            >= self
+                .cursor_offset
+                .row
+                .saturating_add(height.saturating_sub(6).into())
+        {
+            row.saturating_sub(height.saturating_sub(5).into())
+                .saturating_add(1)
+        } else {
+            self.cursor_offset.row
+        };
+
+        let offset_col = if col < self.cursor_offset.col {
+            col.saturating_sub(5)
+        } else if col < self.cursor_offset.col.saturating_add(5) {
+            self.cursor_offset.col.saturating_sub(1)
+        } else if col
+            >= self
+                .cursor_offset
+                .col
+                .saturating_add(width.saturating_sub(5).into())
+        {
+            col.saturating_sub(width.saturating_sub(5).into())
+                .saturating_add(1)
+        } else {
+            self.cursor_offset.col
+        };
+
+        self.cursor_offset = Cursor {
+            col: offset_col,
+            row: offset_row,
+        };
+    }
+
+    fn move_cursor(&mut self, msg: &Message) {
+        match msg {
+            Message::MoveCursorUp(n) => {
+                self.move_cursor_vertically(Direction::Backward(*n));
+            }
+            Message::MoveCursorDown(n) => {
+                self.move_cursor_vertically(Direction::Forward(*n));
+            }
+            Message::MoveCursorLeft(n) => {
+                self.move_cursor_horizontally(Direction::Backward(*n));
+            }
+            Message::MoveCursorRight(n) => {
+                self.move_cursor_horizontally(Direction::Forward(*n));
+            }
+            Message::MoveCursorPageUp => {
+                self.move_cursor_vertically(Direction::Backward(self.viewport.height.into()));
+            }
+            Message::MoveCursorPageDown => {
+                self.move_cursor_vertically(Direction::Forward(self.viewport.height.into()));
+            }
+            Message::MoveCursorLineStart => self.move_cursor_to_line_start(),
+            Message::MoveCursorLineEnd => self.move_cursor_to_line_end(),
+            _ => {}
+        };
+
+        self.scroll();
+    }
+
+    fn margin_width(&self) -> u16 {
+        u16::try_from(self.len().to_string().len().saturating_add(1).max(3)).unwrap()
+    }
+}
+
+impl Component for Document {
+    fn update(&mut self, msg: Message) -> Result<Option<Command>> {
+        match msg {
+            Message::InsertChar(ch) => self.insert(ch),
+            Message::InsertLineBreak => self.insert_newline(),
+            Message::DeleteCharForward => self.delete(Direction::Forward(1)),
+            Message::DeleteCharBackward => {
+                self.delete(Direction::Backward(1));
+            }
+            _ => {
+                self.move_cursor(&msg);
+            }
+        };
+
+        Ok(None)
+    }
+}
+
+impl View for Document {
+    fn render_to(&self, frame: &mut crate::render::Frame) {
+        for row_in_view in 0..self.viewport.height {
+            frame.write(
+                Position::new(0, self.viewport.top().saturating_add(row_in_view)),
+                format!(
+                    "{:1$} ",
+                    (usize::from(row_in_view) + self.cursor_offset.row).saturating_add(1),
+                    usize::from(self.margin_width().saturating_sub(1))
+                )
+                .as_str(),
+                Color::Rgb(113, 105, 95),
+                Color::default(),
+            );
+
+            if let Some(row) = self.line(usize::from(row_in_view) + self.cursor_offset.row) {
+                let start = self.cursor_offset.col;
+                if start <= row.len_chars() {
+                    let end = start + usize::from(self.viewport.width);
+                    let row = row.slice(start..end.min(row.len_chars())).to_string();
+                    frame.write(
+                        Position::new(
+                            self.margin_width(),
+                            self.viewport.top().saturating_add(row_in_view),
+                        ),
+                        &row,
+                        Color::Rgb(236, 226, 195),
+                        Color::default(),
+                    );
+                }
+            } else {
+                frame.write(
+                    Position::new(0, self.viewport.top().saturating_add(row_in_view)),
+                    "~",
+                    Color::Rgb(74, 68, 65),
+                    Color::default(),
+                );
+            }
+        }
     }
 }
 
@@ -202,10 +375,12 @@ mod tests {
 
     #[test]
     fn document_from_reader_handles_error_with_context() {
-        let error = Document::from(FileNotFoundReader).unwrap_err();
+        let error = Document::from(Rect::default(), FileNotFoundReader).unwrap_err();
 
         assert_eq!(
-            Document::from(FileNotFoundReader).unwrap_err().to_string(),
+            Document::from(Rect::default(), FileNotFoundReader)
+                .unwrap_err()
+                .to_string(),
             "creating rope from reader"
         );
         let mut chain = error.chain();
@@ -223,9 +398,24 @@ mod tests {
     #[test]
     fn document_len() {
         assert_eq!(Document::default().len(), 1);
-        assert_eq!(Document::from("1".as_bytes()).unwrap().len(), 1);
-        assert_eq!(Document::from("1\n".as_bytes()).unwrap().len(), 2);
-        assert_eq!(Document::from("1\n2\n3\n".as_bytes()).unwrap().len(), 4);
+        assert_eq!(
+            Document::from(Rect::default(), "1".as_bytes())
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            Document::from(Rect::default(), "1\n".as_bytes())
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(
+            Document::from(Rect::default(), "1\n2\n3\n".as_bytes())
+                .unwrap()
+                .len(),
+            4
+        );
     }
 
     #[test]
@@ -247,7 +437,11 @@ mod tests {
 
     #[test]
     fn document_move_cursor_horizontally_through_document() {
-        let mut document = Document::from("1234\nabcd\n🇬🇧🇯🇲🇧🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿\n🦀🌳🦀🌳\n".as_bytes()).unwrap();
+        let mut document = Document::from(
+            Rect::default(),
+            "1234\nabcd\n🇬🇧🇯🇲🇧🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿\n🦀🌳🦀🌳\n".as_bytes(),
+        )
+        .unwrap();
         document.move_cursor_horizontally(Direction::Forward(0));
         assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_horizontally(Direction::Forward(1));
@@ -306,6 +500,7 @@ mod tests {
     #[test]
     fn document_move_cursor_vertically_through_first_column() {
         let mut document = Document::from(
+            Rect::default(),
             "\
                         1234\n\
                         abcdefghijklmnop\n\
@@ -333,6 +528,7 @@ mod tests {
     #[test]
     fn document_move_cursor_vertically_through_second_column() {
         let mut document = Document::from(
+            Rect::default(),
             "\
                         1234\n\
                         abcdefghijklmnop\n\
@@ -380,6 +576,7 @@ mod tests {
     #[test]
     fn document_move_cursor_vertically_aligns_to_previous_grapheme_boundary() {
         let mut document = Document::from(
+            Rect::default(),
             "\
                         abcdefgh\n\
                         🇬🇧🇯🇲🇧🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿\n\
@@ -409,6 +606,7 @@ mod tests {
     fn document_move_cursor_vertically_aligns_to_next_grapheme_boundary() {
         // TODO: these tests, make them cleaner
         let mut document = Document::from(
+            Rect::default(),
             // 🏴󠁧󠁢󠁥󠁮󠁧󠁿 has len of 7 so we align to the right grapheme boundary.
             "\
                         abcdefgh\n\
@@ -433,6 +631,7 @@ mod tests {
     fn document_move_cursor_vertically_handles_different_line_lengths() {
         // TODO: these tests, make them cleaner
         let mut document = Document::from(
+            Rect::default(),
             // 🏴󠁧󠁢󠁥󠁮󠁧󠁿 has len of 7 so we align to the right grapheme boundary.
             "\
                         abcdefghijklmnopqrstuvwxyz\n\
@@ -482,6 +681,7 @@ mod tests {
     #[test]
     fn document_delete_forward() {
         let mut document = Document::from(
+            Rect::default(),
             "\
                         abc\n\
                         🇬🇧🇯🇲🇧🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿\n\
@@ -521,6 +721,7 @@ mod tests {
     #[test]
     fn document_delete_backward() {
         let mut document = Document::from(
+            Rect::default(),
             "\
                         abc\n\
                         🇬🇧🇯🇲🇧🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿\n\
@@ -576,7 +777,7 @@ mod tests {
         assert_eq!(document.cursor(), Cursor::new(2, 1));
         assert_eq!(document.line(1), Some(RopeSlice::from("🇬🇧")));
 
-        let mut document = Document::from("ello".as_bytes()).unwrap();
+        let mut document = Document::from(Rect::default(), "ello".as_bytes()).unwrap();
         assert_eq!(document.len(), 1);
         assert_eq!(document.cursor(), Cursor::new(0, 0));
 
@@ -588,7 +789,7 @@ mod tests {
 
     #[test]
     fn document_insert_newline() {
-        let mut document = Document::from("hello".as_bytes()).unwrap();
+        let mut document = Document::from(Rect::default(), "hello".as_bytes()).unwrap();
         document.move_cursor_horizontally(Direction::Forward(100));
         assert_eq!(document.len(), 1);
         assert_eq!(document.cursor(), Cursor::new(5, 0));
@@ -605,7 +806,7 @@ mod tests {
         assert_eq!(document.line(1), Some(RopeSlice::from("")));
         assert_eq!(document.line(2), Some(RopeSlice::from("")));
 
-        let mut document = Document::from("hello".as_bytes()).unwrap();
+        let mut document = Document::from(Rect::default(), "hello".as_bytes()).unwrap();
         document.move_cursor_horizontally(Direction::Forward(2));
         assert_eq!(document.len(), 1);
         assert_eq!(document.cursor(), Cursor::new(2, 0));
@@ -619,7 +820,7 @@ mod tests {
 
     #[test]
     fn document_move_cursor_to_line_start() {
-        let mut document = Document::from("hello\nworld\n".as_bytes()).unwrap();
+        let mut document = Document::from(Rect::default(), "hello\nworld\n".as_bytes()).unwrap();
         document.move_cursor_horizontally(Direction::Forward(5));
         assert_eq!(document.cursor(), Cursor::new(5, 0));
         document.move_cursor_to_line_start();
@@ -630,7 +831,7 @@ mod tests {
 
     #[test]
     fn document_move_cursor_to_line_end() {
-        let mut document = Document::from("hello\n\nworld".as_bytes()).unwrap();
+        let mut document = Document::from(Rect::default(), "hello\n\nworld".as_bytes()).unwrap();
         assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_to_line_end();
         assert_eq!(document.cursor(), Cursor::new(5, 0));
@@ -640,7 +841,7 @@ mod tests {
 
     #[test]
     fn document_line() {
-        let document = Document::from("hello\n\nworld".as_bytes()).unwrap();
+        let document = Document::from(Rect::default(), "hello\n\nworld".as_bytes()).unwrap();
         assert_eq!(document.line(0).unwrap(), RopeSlice::from("hello"));
         assert_eq!(document.line(1).unwrap(), RopeSlice::from(""));
         assert_eq!(document.line(2).unwrap(), RopeSlice::from("world"));

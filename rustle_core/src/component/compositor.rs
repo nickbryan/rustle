@@ -1,22 +1,23 @@
 use crate::communication::{Command, Message};
-use crate::component::{Buffer, StatusBar, TextInput, Welcome};
-use crate::document::Document;
+use crate::component::document::Document;
+use crate::component::{StatusBar, TextInput, Welcome};
 use crate::editor::Component;
 use crate::mode::Mode;
 use crate::render::{Frame, View};
 use crate::ui::{Position, Rect};
 use anyhow::{Context, Result};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io;
 use taffy::prelude::*;
 
-/// `Window` is the default root component for the `Editor`.
+/// `Compositor` is the default root component for the `Editor`.
 pub struct Compositor {
-    active_buffer_idx: usize,
-    buffers: Vec<Buffer>,
+    active_document_idx: usize,
+    documents: Vec<(String, Document)>,
+    document_name_indexes: HashMap<String, usize>,
     command_prompt: TextInput,
     mode: Mode,
-    msg: String,
     layout: Taffy,
     body_node: Node,
     status_node: Node,
@@ -93,11 +94,11 @@ impl Compositor {
         }
 
         Self {
-            active_buffer_idx: 0,
-            buffers: Vec::default(),
+            active_document_idx: 0,
+            documents: Vec::default(),
+            document_name_indexes: HashMap::new(),
             command_prompt,
             mode,
-            msg: String::new(),
             layout,
             body_node,
             status_node,
@@ -113,9 +114,9 @@ impl Component for Compositor {
     fn update(&mut self, msg: Message) -> Result<Option<Command>> {
         if let Message::EnterMode(mode) = msg.clone() {
             if let Mode::Insert = mode {
-                if self.buffers.is_empty() {
-                    self.buffers
-                        .push(Buffer::new(self.buffer_space(), Document::default()));
+                if self.documents.is_empty() {
+                    self.documents
+                        .push((String::from("scratch"), Document::new(self.buffer_space())));
                 }
             }
 
@@ -129,31 +130,41 @@ impl Component for Compositor {
         }
 
         if let Message::Open(path) = msg.clone() {
-            self.buffers.push(Buffer::new(
-                self.buffer_space(),
-                Document::from(&mut io::BufReader::new(File::open(path.as_str())?))
-                    .context("opening file")?,
-            ));
-            self.active_buffer_idx = self.buffers.len() - 1;
+            if !self.document_name_indexes.contains_key(&path) {
+                self.documents.push((
+                    path.clone(),
+                    Document::from(
+                        self.buffer_space(),
+                        &mut io::BufReader::new(
+                            File::open(path.clone().as_str()).context("opening file")?,
+                        ),
+                    )
+                    .context("opening document")?,
+                ));
+                self.document_name_indexes
+                    .insert(path.clone(), self.documents.len() - 1);
+            }
+
+            self.active_document_idx = *self.document_name_indexes.get(&path).unwrap();
         }
 
         if let Message::BufferPrevious = msg.clone() {
-            self.active_buffer_idx = self.active_buffer_idx.saturating_sub(1);
+            self.active_document_idx = self.active_document_idx.saturating_sub(1);
         }
 
         if let Message::BufferNext = msg.clone() {
-            self.active_buffer_idx = self
-                .active_buffer_idx
+            self.active_document_idx = self
+                .active_document_idx
                 .saturating_add(1)
-                .min(self.buffers.len() - 1);
+                .min(self.documents.len().saturating_sub(1));
         }
 
         if let Mode::Execute = self.mode {
             return self.command_prompt.update(msg);
         }
 
-        if !self.buffers.is_empty() {
-            return self.buffers[self.active_buffer_idx].update(msg);
+        if !self.documents.is_empty() {
+            return self.documents[self.active_document_idx].1.update(msg);
         }
 
         Ok(None)
@@ -162,29 +173,31 @@ impl Component for Compositor {
 
 impl View for Compositor {
     fn render_to(&self, frame: &mut Frame) {
-        if self.buffers.is_empty() {
+        if self.documents.is_empty() {
             Welcome {
                 size: self.buffer_space(),
             }
             .render_to(frame);
         } else {
-            self.buffers[self.active_buffer_idx].render_to(frame);
+            self.documents[self.active_document_idx].1.render_to(frame);
         }
 
         let mut len = 0;
 
         if let Mode::Normal(_) | Mode::Insert = self.mode {
-            frame.set_cursor_position(if self.buffers.is_empty() {
+            frame.set_cursor_position(if self.documents.is_empty() {
                 self.layout.layout(self.body_node).unwrap().location.into()
             } else {
                 let body_position: Position =
                     self.layout.layout(self.body_node).unwrap().location.into();
                 Position::new(
-                    self.buffers[self.active_buffer_idx]
+                    self.documents[self.active_document_idx]
+                        .1
                         .cursor_position()
                         .col
                         .saturating_add(body_position.col),
-                    self.buffers[self.active_buffer_idx]
+                    self.documents[self.active_document_idx]
+                        .1
                         .cursor_position()
                         .row
                         .saturating_add(body_position.row),
@@ -192,8 +205,8 @@ impl View for Compositor {
             });
         }
 
-        if !self.buffers.is_empty() {
-            len = self.buffers[self.active_buffer_idx].len();
+        if !self.documents.is_empty() {
+            len = self.documents[self.active_document_idx].1.len();
         }
 
         StatusBar {
@@ -201,7 +214,12 @@ impl View for Compositor {
             mode: self.mode.to_string(),
             line_count: len,
             cursor_position: frame.cursor_position(), // TODO: not accounting for margin.
-            file_name: self.msg.clone(),
+            file_name: self
+                .documents
+                .get(self.active_document_idx)
+                .unwrap_or(&(String::new(), Document::default()))
+                .0
+                .clone(),
         }
         .render_to(frame);
 
