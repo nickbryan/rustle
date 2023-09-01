@@ -69,8 +69,10 @@ where
     /// Consume the given `EventStream` to run/drive the Editor.
     ///
     /// # Errors
-    ///
     /// Will return `Err` when a message was received on the `err_tx`.
+    ///
+    /// # Panics
+    /// When the message channels are closed unexpectedly.
     pub async fn consume(&mut self, mut event_stream: EventStream) -> Result<()> {
         use anyhow::Context;
 
