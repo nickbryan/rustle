@@ -31,6 +31,8 @@ impl Normal {
             Key::PageDown => Some(Message::MoveCursorPageDown),
             Key::Insert => Some(Message::EnterMode(Mode::Insert)),
             Key::Enter => Some(Message::MoveCursorDown(1)),
+            Key::Left => Some(Message::BufferPrevious),
+            Key::Right => Some(Message::BufferNext),
             _ => None,
         }
         .map_or_else(

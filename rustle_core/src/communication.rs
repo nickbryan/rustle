@@ -29,6 +29,9 @@ pub enum Message {
     Save,
     SaveAs(String),
 
+    BufferNext,
+    BufferPrevious,
+
     Quit,
 }
 

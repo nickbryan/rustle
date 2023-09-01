@@ -134,6 +134,18 @@ impl Component for Window {
                 Document::from(&mut io::BufReader::new(File::open(path.as_str())?))
                     .context("opening file")?,
             ));
+            self.active_buffer_idx = self.buffers.len() - 1;
+        }
+
+        if let Message::BufferPrevious = msg.clone() {
+            self.active_buffer_idx = self.active_buffer_idx.saturating_sub(1);
+        }
+
+        if let Message::BufferNext = msg.clone() {
+            self.active_buffer_idx = self
+                .active_buffer_idx
+                .saturating_add(1)
+                .min(self.buffers.len() - 1);
         }
 
         if let Mode::Execute = self.mode {
@@ -188,7 +200,7 @@ impl View for Window {
             area: self.layout.layout(self.status_node).unwrap().into(),
             mode: self.mode.to_string(),
             line_count: len,
-            cursor_position: frame.cursor_position(),
+            cursor_position: frame.cursor_position(), // TODO: not accounting for margin.
             file_name: self.msg.clone(),
         }
         .render_to(frame);
