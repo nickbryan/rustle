@@ -1,5 +1,5 @@
 use crate::communication::{Command, Message};
-use crate::component::Window;
+use crate::component::Compositor;
 use crate::mode::Normal;
 use crate::render::{View, Viewport};
 use crate::{mode, Canvas, Event, EventStream, Mode};
@@ -37,7 +37,7 @@ where
     viewport: Viewport<'a, C>,
 }
 
-impl<'a, C> Editor<'a, Window, C>
+impl<'a, C> Editor<'a, Compositor, C>
 where
     C: Canvas,
 {
@@ -54,7 +54,7 @@ where
 
         Ok(Self {
             mode: mode.clone(),
-            root_component: Window::new(viewport.area(), mode),
+            root_component: Compositor::new(viewport.area(), mode),
             should_quit: false,
             viewport,
         })

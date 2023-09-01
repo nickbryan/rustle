@@ -11,7 +11,7 @@ use std::io;
 use taffy::prelude::*;
 
 /// `Window` is the default root component for the `Editor`.
-pub struct Window {
+pub struct Compositor {
     active_buffer_idx: usize,
     buffers: Vec<Buffer>,
     command_prompt: TextInput,
@@ -22,7 +22,7 @@ pub struct Window {
     status_node: Node,
 }
 
-impl Window {
+impl Compositor {
     pub fn new(size: Rect, mode: Mode) -> Self {
         let mut layout = Taffy::new();
 
@@ -109,7 +109,7 @@ impl Window {
     }
 }
 
-impl Component for Window {
+impl Component for Compositor {
     fn update(&mut self, msg: Message) -> Result<Option<Command>> {
         if let Message::EnterMode(mode) = msg.clone() {
             if let Mode::Insert = mode {
@@ -160,7 +160,7 @@ impl Component for Window {
     }
 }
 
-impl View for Window {
+impl View for Compositor {
     fn render_to(&self, frame: &mut Frame) {
         if self.buffers.is_empty() {
             Welcome {
