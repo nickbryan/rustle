@@ -30,10 +30,10 @@ extern "C" {
     pub(crate) fn load_addon(this: &Terminal, addon: TerminalAddon);
 
     #[wasm_bindgen(method, getter)]
-    pub(crate) fn cols(this: &Terminal) -> usize;
+    pub(crate) fn cols(this: &Terminal) -> u16;
 
     #[wasm_bindgen(method, getter)]
-    pub(crate) fn rows(this: &Terminal) -> usize;
+    pub(crate) fn rows(this: &Terminal) -> u16;
 
     #[wasm_bindgen(method)]
     pub(crate) fn focus(this: &Terminal);

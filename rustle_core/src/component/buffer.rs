@@ -1,4 +1,4 @@
-use crate::document::Direction;
+use crate::document::{Cursor, Direction};
 use crate::{
     communication::{Command, Message},
     document::Document,
@@ -8,9 +8,15 @@ use crate::{
 };
 use anyhow::Result;
 
+#[derive(Debug, Default)]
+struct Offset {
+    pub col: usize,
+    pub row: usize,
+}
+
 pub(crate) struct Buffer {
     document: Document,
-    pub offset: Position,
+    cursor_offset: Offset,
     viewport: Rect,
 }
 
@@ -18,7 +24,7 @@ impl Buffer {
     pub(crate) fn new(viewport: Rect, document: Document) -> Self {
         Self {
             document,
-            offset: Position::default(),
+            cursor_offset: Offset::default(),
             viewport,
         }
     }
@@ -29,45 +35,64 @@ impl Buffer {
 
     pub(crate) fn cursor_position(&self) -> Position {
         Position::new(
-            self.margin_width()
-                + self
-                    .document
-                    .cursor_coordinates()
+            self.margin_width().saturating_add(
+                self.document
+                    .cursor()
                     .col
-                    .saturating_sub(self.offset.col),
+                    .saturating_sub(self.cursor_offset.col)
+                    .try_into()
+                    .unwrap(),
+            ),
             self.document
-                .cursor_coordinates()
+                .cursor()
                 .row
-                .saturating_sub(self.offset.row),
+                .saturating_sub(self.cursor_offset.row)
+                .try_into()
+                .unwrap(),
         )
     }
 
     pub(crate) fn scroll(&mut self) {
-        let Position { col, row } = self.document.cursor_coordinates();
+        let Cursor { col, row } = self.document.cursor();
         let width = self.viewport.width - self.margin_width();
-        let height = self.viewport.height - 2;
+        let height = self.viewport.height;
 
-        let offset_row = if row < self.offset.row {
+        let offset_row = if row < self.cursor_offset.row {
             row
-        } else if row < self.offset.row + 5 {
-            self.offset.row.saturating_sub(1)
-        } else if row >= self.offset.row.saturating_add(height - 5) {
-            row.saturating_sub(height - 5).saturating_add(1)
+        } else if row < self.cursor_offset.row.saturating_add(5) {
+            self.cursor_offset.row.saturating_sub(1)
+        } else if row
+            >= self
+                .cursor_offset
+                .row
+                .saturating_add(height.saturating_sub(6).into())
+        {
+            row.saturating_sub(height.saturating_sub(5).into())
+                .saturating_add(1)
         } else {
-            self.offset.row
+            self.cursor_offset.row
         };
 
-        let offset_col = if col < self.offset.col {
+        let offset_col = if col < self.cursor_offset.col {
             col.saturating_sub(5)
-        } else if col < self.offset.col + 5 {
-            self.offset.col.saturating_sub(1)
-        } else if col >= self.offset.col.saturating_add(width - 5) {
-            col.saturating_sub(width - 5).saturating_add(1)
+        } else if col < self.cursor_offset.col.saturating_add(5) {
+            self.cursor_offset.col.saturating_sub(1)
+        } else if col
+            >= self
+                .cursor_offset
+                .col
+                .saturating_add(width.saturating_sub(5).into())
+        {
+            col.saturating_sub(width.saturating_sub(5).into())
+                .saturating_add(1)
         } else {
-            self.offset.col
+            self.cursor_offset.col
         };
 
-        self.offset = Position::new(offset_col, offset_row);
+        self.cursor_offset = Offset {
+            col: offset_col,
+            row: offset_row,
+        };
     }
 
     fn move_cursor(&mut self, msg: &Message) {
@@ -89,11 +114,11 @@ impl Buffer {
             }
             Message::MoveCursorPageUp => {
                 self.document
-                    .move_cursor_vertically(Direction::Backward(self.viewport.height));
+                    .move_cursor_vertically(Direction::Backward(self.viewport.height.into()));
             }
             Message::MoveCursorPageDown => {
                 self.document
-                    .move_cursor_vertically(Direction::Forward(self.viewport.height));
+                    .move_cursor_vertically(Direction::Forward(self.viewport.height.into()));
             }
             Message::MoveCursorLineStart => self.document.move_cursor_to_line_start(),
             Message::MoveCursorLineEnd => self.document.move_cursor_to_line_end(),
@@ -103,13 +128,16 @@ impl Buffer {
         self.scroll();
     }
 
-    fn margin_width(&self) -> usize {
-        self.document
-            .len()
-            .to_string()
-            .len()
-            .saturating_add(1)
-            .max(3)
+    fn margin_width(&self) -> u16 {
+        u16::try_from(
+            self.document
+                .len()
+                .to_string()
+                .len()
+                .saturating_add(1)
+                .max(3),
+        )
+        .unwrap()
     }
 }
 
@@ -135,27 +163,30 @@ impl View for Buffer {
             frame.write(
                 &Position {
                     col: 0,
-                    row: row_in_view,
+                    row: self.viewport.top().saturating_add(row_in_view),
                 },
                 format!(
                     "{:1$} ",
-                    (row_in_view + self.offset.row).saturating_add(1),
-                    self.margin_width().saturating_sub(1)
+                    (usize::from(row_in_view) + self.cursor_offset.row).saturating_add(1),
+                    usize::from(self.margin_width().saturating_sub(1))
                 )
                 .as_str(),
                 Color::Rgb(113, 105, 95),
                 Color::default(),
             );
 
-            if let Some(row) = self.document.line(row_in_view + self.offset.row) {
-                let start = self.offset.col;
+            if let Some(row) = self
+                .document
+                .line(usize::from(row_in_view) + self.cursor_offset.row)
+            {
+                let start = self.cursor_offset.col;
                 if start <= row.len_chars() {
-                    let end = start + self.viewport.width;
+                    let end = start + usize::from(self.viewport.width);
                     let row = row.slice(start..end.min(row.len_chars())).to_string();
                     frame.write(
                         &Position {
                             col: self.margin_width(),
-                            row: row_in_view,
+                            row: self.viewport.top().saturating_add(row_in_view),
                         },
                         &row,
                         Color::Rgb(236, 226, 195),
@@ -166,7 +197,7 @@ impl View for Buffer {
                 frame.write(
                     &Position {
                         col: 0,
-                        row: row_in_view,
+                        row: self.viewport.top().saturating_add(row_in_view),
                     },
                     "~",
                     Color::Rgb(74, 68, 65),

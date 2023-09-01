@@ -13,11 +13,15 @@ pub struct Welcome {
 impl View for Welcome {
     fn render_to(&self, frame: &mut crate::render::Frame) {
         let message = format!("🍂  Rustle editor -- version {VERSION}");
-        let padding = self.size.width.saturating_sub(message.len()) / 2;
+        let padding = self
+            .size
+            .width
+            .saturating_sub(u16::try_from(message.len()).unwrap())
+            / 2;
         frame.write(
             &Position {
                 col: padding,
-                row: self.size.height / 3,
+                row: self.size.top().saturating_add(self.size.height) / 3,
             },
             &message,
             Color::default(),

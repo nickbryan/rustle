@@ -35,7 +35,7 @@ pub trait Canvas {
     ///
     /// # Errors
     /// TODO...
-    fn position_cursor(&mut self, row: usize, col: usize) -> Result<(), IoError>;
+    fn position_cursor(&mut self, row: u16, col: u16) -> Result<(), IoError>;
 
     /// Show the cursor.
     ///
@@ -63,7 +63,7 @@ pub struct Cell {
 impl Cell {
     /// Create a new Cell.
     #[must_use]
-    pub fn new(col: usize, row: usize, symbol: &str, foreground: Color, background: Color) -> Self {
+    pub fn new(col: u16, row: u16, symbol: &str, foreground: Color, background: Color) -> Self {
         Self {
             position: Position::new(col, row),
             symbol: symbol.into(),
@@ -165,8 +165,9 @@ impl Frame {
 
     fn index_of(&self, position: &Position) -> Result<usize, OutOfBoundsError> {
         if self.area.contains(position) {
-            Ok((position.row - self.area.position.row) * self.area.width
-                + (position.col - self.area.position.col))
+            let index = ((position.row - self.area.position.row) * self.area.width)
+                + (position.col - self.area.position.col);
+            Ok(index.into())
         } else {
             Err(OutOfBoundsError)
         }
@@ -194,7 +195,7 @@ impl Frame {
         // TODO: do we want to cap the line length here? If the line is longer than the width do we truncate?
         for (_, grapheme) in string[..]
             .graphemes(true)
-            .take(self.area.width - position.col)
+            .take((self.area.width - position.col).into())
             .enumerate()
         {
             self.cells[cursor] = Cell::new(
@@ -208,7 +209,7 @@ impl Frame {
             cursor += grapheme_width(grapheme);
         }
 
-        for i in cursor..str_start + self.area.width {
+        for i in cursor..str_start + usize::from(self.area.width) {
             if self.cells.get(i).is_some() {
                 self.cells[i].reset();
             }

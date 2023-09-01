@@ -96,7 +96,7 @@ impl<W: Write> Canvas for CrosstermCanvas<W> {
         crossterm::queue!(self.out, Hide)
     }
 
-    fn position_cursor(&mut self, row: usize, col: usize) -> Result<(), IoError> {
+    fn position_cursor(&mut self, row: u16, col: u16) -> Result<(), IoError> {
         let x =
             u16::try_from(col).map_err(|e| IoError::new(io::ErrorKind::Other, format!("{}", e)))?;
         let y =
@@ -111,7 +111,7 @@ impl<W: Write> Canvas for CrosstermCanvas<W> {
 
     fn size(&self) -> Result<Rect, IoError> {
         let (width, height) = crossterm::terminal::size()?;
-        Ok(Rect::new(usize::from(width), usize::from(height)))
+        Ok(Rect::new(width, height))
     }
 }
 

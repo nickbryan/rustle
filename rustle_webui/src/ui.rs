@@ -6,14 +6,14 @@ use std::io;
 use std::io::{Error as IoError, Write};
 
 pub(crate) struct WebCanvas {
-    width: usize,
-    height: usize,
+    width: u16,
+    height: u16,
     terminal: Terminal,
     buffer: std::cell::Cell<Vec<u8>>,
 }
 
 impl WebCanvas {
-    pub(crate) fn new(width: usize, height: usize, terminal: Terminal) -> Self {
+    pub(crate) fn new(width: u16, height: u16, terminal: Terminal) -> Self {
         Self {
             width,
             height,
@@ -176,7 +176,7 @@ impl Canvas for WebCanvas {
             .map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))
     }
 
-    fn position_cursor(&mut self, row: usize, col: usize) -> Result<(), IoError> {
+    fn position_cursor(&mut self, row: u16, col: u16) -> Result<(), IoError> {
         self.buffer
             .get_mut()
             .write_all(format!("\x1B[{};{}H", row + 1, col + 1).as_bytes())

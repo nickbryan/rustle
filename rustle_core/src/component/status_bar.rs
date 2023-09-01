@@ -21,12 +21,12 @@ impl View for StatusBar {
 
         let len = status.len() + line_indicator.len();
 
-        if self.area.width > len {
-            status.push_str(&" ".repeat(self.area.width - len));
+        if usize::from(self.area.width) as usize > len {
+            status.push_str(&" ".repeat(usize::from(self.area.width) - len));
         }
 
         status = format!("{status}{line_indicator}");
-        status.truncate(self.area.width);
+        status.truncate(usize::from(self.area.width));
 
         frame.write(
             &Position {

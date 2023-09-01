@@ -1,5 +1,4 @@
 use crate::graphemes::RopeExt;
-use crate::ui::Position;
 use anyhow::{Context, Result};
 use ropey::{Rope, RopeSlice};
 use std::io::Read;
@@ -14,6 +13,18 @@ pub(crate) enum Direction {
 pub(crate) struct Selection {
     anchor: usize,
     head: usize,
+}
+
+#[derive(Debug, Default, Eq, PartialEq)]
+pub(crate) struct Cursor {
+    pub(crate) col: usize,
+    pub(crate) row: usize,
+}
+
+impl Cursor {
+    fn new(col: usize, row: usize) -> Self {
+        Self { col, row }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -37,8 +48,8 @@ impl Document {
         self.text.len_lines()
     }
 
-    pub(crate) fn cursor_coordinates(&self) -> Position {
-        Position::new(
+    pub(crate) fn cursor(&self) -> Cursor {
+        Cursor::new(
             self.text.visual_column_position(self.selection.head),
             self.text.char_to_line(self.selection.head),
         )
@@ -177,7 +188,6 @@ impl Document {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ui::Position;
 
     struct FileNotFoundReader;
 
@@ -222,75 +232,75 @@ mod tests {
     fn document_move_cursor_horizontally_does_nothing_for_empty_document() {
         let mut document = Document::default();
         document.move_cursor_horizontally(Direction::Forward(0));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_horizontally(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_horizontally(Direction::Forward(10));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_horizontally(Direction::Backward(0));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_horizontally(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_horizontally(Direction::Backward(10));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
     }
 
     #[test]
     fn document_move_cursor_horizontally_through_document() {
         let mut document = Document::from("1234\nabcd\n🇬🇧🇯🇲🇧🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿\n🦀🌳🦀🌳\n".as_bytes()).unwrap();
         document.move_cursor_horizontally(Direction::Forward(0));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_horizontally(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(1, 0));
+        assert_eq!(document.cursor(), Cursor::new(1, 0));
         document.move_cursor_horizontally(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(2, 0));
+        assert_eq!(document.cursor(), Cursor::new(2, 0));
         document.move_cursor_horizontally(Direction::Forward(2));
-        assert_eq!(document.cursor_coordinates(), Position::new(4, 0));
+        assert_eq!(document.cursor(), Cursor::new(4, 0));
         document.move_cursor_horizontally(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 1));
+        assert_eq!(document.cursor(), Cursor::new(0, 1));
         document.move_cursor_horizontally(Direction::Forward(5));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 2));
+        assert_eq!(document.cursor(), Cursor::new(0, 2));
         document.move_cursor_horizontally(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(2, 2));
+        assert_eq!(document.cursor(), Cursor::new(2, 2));
         document.move_cursor_horizontally(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(4, 2));
+        assert_eq!(document.cursor(), Cursor::new(4, 2));
         document.move_cursor_horizontally(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(6, 2));
+        assert_eq!(document.cursor(), Cursor::new(6, 2));
         document.move_cursor_horizontally(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(8, 2));
+        assert_eq!(document.cursor(), Cursor::new(8, 2));
         document.move_cursor_horizontally(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 3));
+        assert_eq!(document.cursor(), Cursor::new(0, 3));
         document.move_cursor_horizontally(Direction::Forward(5));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 4));
+        assert_eq!(document.cursor(), Cursor::new(0, 4));
         document.move_cursor_horizontally(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 4));
+        assert_eq!(document.cursor(), Cursor::new(0, 4));
         document.move_cursor_horizontally(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(8, 3));
+        assert_eq!(document.cursor(), Cursor::new(8, 3));
         document.move_cursor_horizontally(Direction::Backward(4));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 3));
+        assert_eq!(document.cursor(), Cursor::new(0, 3));
         document.move_cursor_horizontally(Direction::Backward(5));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 2));
+        assert_eq!(document.cursor(), Cursor::new(0, 2));
         document.move_cursor_horizontally(Direction::Backward(10));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_horizontally(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
     }
 
     #[test]
     fn document_move_cursor_vertically_does_nothing_for_empty_document() {
         let mut document = Document::default();
         document.move_cursor_vertically(Direction::Forward(0));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_vertically(Direction::Forward(10));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_vertically(Direction::Backward(0));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_vertically(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_vertically(Direction::Backward(10));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
     }
 
     #[test]
@@ -309,15 +319,15 @@ mod tests {
         )
         .unwrap();
         document.move_cursor_vertically(Direction::Forward(0));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 1));
+        assert_eq!(document.cursor(), Cursor::new(0, 1));
         document.move_cursor_vertically(Direction::Forward(100));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 7));
+        assert_eq!(document.cursor(), Cursor::new(0, 7));
         document.move_cursor_vertically(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 6));
+        assert_eq!(document.cursor(), Cursor::new(0, 6));
         document.move_cursor_vertically(Direction::Backward(100));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
     }
 
     #[test]
@@ -336,35 +346,35 @@ mod tests {
         )
         .unwrap();
         document.move_cursor_horizontally(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(1, 0));
+        assert_eq!(document.cursor(), Cursor::new(1, 0));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(1, 1));
+        assert_eq!(document.cursor(), Cursor::new(1, 1));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 2));
+        assert_eq!(document.cursor(), Cursor::new(0, 2));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(1, 3));
+        assert_eq!(document.cursor(), Cursor::new(1, 3));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 4));
+        assert_eq!(document.cursor(), Cursor::new(0, 4));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 5));
+        assert_eq!(document.cursor(), Cursor::new(0, 5));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 6));
+        assert_eq!(document.cursor(), Cursor::new(0, 6));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 7));
+        assert_eq!(document.cursor(), Cursor::new(0, 7));
         document.move_cursor_vertically(Direction::Forward(2));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 7));
+        assert_eq!(document.cursor(), Cursor::new(0, 7));
         document.move_cursor_vertically(Direction::Backward(2));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 5));
+        assert_eq!(document.cursor(), Cursor::new(0, 5));
         document.move_cursor_vertically(Direction::Backward(2));
-        assert_eq!(document.cursor_coordinates(), Position::new(1, 3));
+        assert_eq!(document.cursor(), Cursor::new(1, 3));
         document.move_cursor_vertically(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 2));
+        assert_eq!(document.cursor(), Cursor::new(0, 2));
         document.move_cursor_vertically(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(1, 1));
+        assert_eq!(document.cursor(), Cursor::new(1, 1));
         document.move_cursor_vertically(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(1, 0));
+        assert_eq!(document.cursor(), Cursor::new(1, 0));
         document.move_cursor_vertically(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(1, 0));
+        assert_eq!(document.cursor(), Cursor::new(1, 0));
     }
 
     #[test]
@@ -380,19 +390,19 @@ mod tests {
         )
         .unwrap();
         document.move_cursor_horizontally(Direction::Forward(7));
-        assert_eq!(document.cursor_coordinates(), Position::new(7, 0));
+        assert_eq!(document.cursor(), Cursor::new(7, 0));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(6, 1));
+        assert_eq!(document.cursor(), Cursor::new(6, 1));
         document.move_cursor_vertically(Direction::Forward(2));
-        assert_eq!(document.cursor_coordinates(), Position::new(6, 3));
+        assert_eq!(document.cursor(), Cursor::new(6, 3));
         document.move_cursor_vertically(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(7, 2));
+        assert_eq!(document.cursor(), Cursor::new(7, 2));
         document.move_cursor_vertically(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(6, 1));
+        assert_eq!(document.cursor(), Cursor::new(6, 1));
         document.move_cursor_vertically(Direction::Forward(2));
-        assert_eq!(document.cursor_coordinates(), Position::new(6, 3));
+        assert_eq!(document.cursor(), Cursor::new(6, 3));
         document.move_cursor_vertically(Direction::Backward(3));
-        assert_eq!(document.cursor_coordinates(), Position::new(7, 0));
+        assert_eq!(document.cursor(), Cursor::new(7, 0));
     }
 
     #[test]
@@ -410,13 +420,13 @@ mod tests {
         )
         .unwrap();
         document.move_cursor_horizontally(Direction::Forward(8));
-        assert_eq!(document.cursor_coordinates(), Position::new(8, 0));
+        assert_eq!(document.cursor(), Cursor::new(8, 0));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(8, 1));
+        assert_eq!(document.cursor(), Cursor::new(8, 1));
         document.move_cursor_vertically(Direction::Forward(2));
-        assert_eq!(document.cursor_coordinates(), Position::new(8, 3));
+        assert_eq!(document.cursor(), Cursor::new(8, 3));
         document.move_cursor_vertically(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(8, 2));
+        assert_eq!(document.cursor(), Cursor::new(8, 2));
     }
 
     #[test]
@@ -438,35 +448,35 @@ mod tests {
         )
         .unwrap();
         document.move_cursor_horizontally(Direction::Forward(26));
-        assert_eq!(document.cursor_coordinates(), Position::new(26, 0));
+        assert_eq!(document.cursor(), Cursor::new(26, 0));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(8, 1));
+        assert_eq!(document.cursor(), Cursor::new(8, 1));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(14, 2));
+        assert_eq!(document.cursor(), Cursor::new(14, 2));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(1, 3));
+        assert_eq!(document.cursor(), Cursor::new(1, 3));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(26, 4));
+        assert_eq!(document.cursor(), Cursor::new(26, 4));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 5));
+        assert_eq!(document.cursor(), Cursor::new(0, 5));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(8, 6));
+        assert_eq!(document.cursor(), Cursor::new(8, 6));
         document.move_cursor_vertically(Direction::Forward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(26, 7));
+        assert_eq!(document.cursor(), Cursor::new(26, 7));
         document.move_cursor_vertically(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(8, 6));
+        assert_eq!(document.cursor(), Cursor::new(8, 6));
         document.move_cursor_vertically(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 5));
+        assert_eq!(document.cursor(), Cursor::new(0, 5));
         document.move_cursor_vertically(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(26, 4));
+        assert_eq!(document.cursor(), Cursor::new(26, 4));
         document.move_cursor_vertically(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(1, 3));
+        assert_eq!(document.cursor(), Cursor::new(1, 3));
         document.move_cursor_vertically(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(14, 2));
+        assert_eq!(document.cursor(), Cursor::new(14, 2));
         document.move_cursor_vertically(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(8, 1));
+        assert_eq!(document.cursor(), Cursor::new(8, 1));
         document.move_cursor_vertically(Direction::Backward(1));
-        assert_eq!(document.cursor_coordinates(), Position::new(26, 0));
+        assert_eq!(document.cursor(), Cursor::new(26, 0));
     }
 
     #[test]
@@ -480,31 +490,31 @@ mod tests {
         )
         .unwrap();
         assert_eq!(document.len(), 3);
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
 
         document.delete(Direction::Forward(1));
         assert_eq!(document.len(), 3);
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         assert_eq!(document.line(0), Some(RopeSlice::from("bc")));
 
         document.delete(Direction::Forward(2));
         assert_eq!(document.len(), 3);
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         assert_eq!(document.line(0), Some(RopeSlice::from("")));
 
         document.delete(Direction::Forward(1));
         assert_eq!(document.len(), 2);
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         assert_eq!(document.line(0), Some(RopeSlice::from("🇬🇧🇯🇲🇧🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿")));
 
         document.delete(Direction::Forward(1));
         assert_eq!(document.len(), 2);
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         assert_eq!(document.line(0), Some(RopeSlice::from("🇯🇲🇧🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿")));
 
         document.delete(Direction::Forward(100));
         assert_eq!(document.len(), 1);
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         assert_eq!(document.line(0), Some(RopeSlice::from("")));
     }
 
@@ -520,21 +530,21 @@ mod tests {
         .unwrap();
         document.move_cursor_horizontally(Direction::Forward(9));
         assert_eq!(document.len(), 3);
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 2));
+        assert_eq!(document.cursor(), Cursor::new(0, 2));
 
         document.delete(Direction::Backward(1));
         assert_eq!(document.len(), 2);
-        assert_eq!(document.cursor_coordinates(), Position::new(8, 1));
+        assert_eq!(document.cursor(), Cursor::new(8, 1));
         assert_eq!(document.line(1), Some(RopeSlice::from("🇬🇧🇯🇲🇧🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿")));
 
         document.delete(Direction::Backward(2));
         assert_eq!(document.len(), 2);
-        assert_eq!(document.cursor_coordinates(), Position::new(4, 1));
+        assert_eq!(document.cursor(), Cursor::new(4, 1));
         assert_eq!(document.line(1), Some(RopeSlice::from("🇬🇧🇯🇲")));
 
         document.delete(Direction::Backward(100));
         assert_eq!(document.len(), 1);
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         assert_eq!(document.line(0), Some(RopeSlice::from("")));
     }
 
@@ -542,37 +552,37 @@ mod tests {
     fn document_insert() {
         let mut document = Document::default();
         assert_eq!(document.len(), 1);
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
 
         document.insert('h');
         assert_eq!(document.len(), 1);
-        assert_eq!(document.cursor_coordinates(), Position::new(1, 0));
+        assert_eq!(document.cursor(), Cursor::new(1, 0));
         assert_eq!(document.line(0), Some(RopeSlice::from("h")));
         document.insert('3');
         assert_eq!(document.len(), 1);
-        assert_eq!(document.cursor_coordinates(), Position::new(2, 0));
+        assert_eq!(document.cursor(), Cursor::new(2, 0));
         assert_eq!(document.line(0), Some(RopeSlice::from("h3")));
         document.insert('\n');
         assert_eq!(document.len(), 2);
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 1));
+        assert_eq!(document.cursor(), Cursor::new(0, 1));
         assert_eq!(document.line(0), Some(RopeSlice::from("h3")));
         assert_eq!(document.line(1), Some(RopeSlice::from("")));
         document.insert('🇬');
         assert_eq!(document.len(), 2);
-        assert_eq!(document.cursor_coordinates(), Position::new(1, 1));
+        assert_eq!(document.cursor(), Cursor::new(1, 1));
         assert_eq!(document.line(1), Some(RopeSlice::from("🇬")));
         document.insert('🇧');
         assert_eq!(document.len(), 2);
-        assert_eq!(document.cursor_coordinates(), Position::new(2, 1));
+        assert_eq!(document.cursor(), Cursor::new(2, 1));
         assert_eq!(document.line(1), Some(RopeSlice::from("🇬🇧")));
 
         let mut document = Document::from("ello".as_bytes()).unwrap();
         assert_eq!(document.len(), 1);
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
 
         document.insert('h');
         assert_eq!(document.len(), 1);
-        assert_eq!(document.cursor_coordinates(), Position::new(1, 0));
+        assert_eq!(document.cursor(), Cursor::new(1, 0));
         assert_eq!(document.line(0), Some(RopeSlice::from("hello")));
     }
 
@@ -581,16 +591,16 @@ mod tests {
         let mut document = Document::from("hello".as_bytes()).unwrap();
         document.move_cursor_horizontally(Direction::Forward(100));
         assert_eq!(document.len(), 1);
-        assert_eq!(document.cursor_coordinates(), Position::new(5, 0));
+        assert_eq!(document.cursor(), Cursor::new(5, 0));
 
         document.insert_newline();
         assert_eq!(document.len(), 2);
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 1));
+        assert_eq!(document.cursor(), Cursor::new(0, 1));
         assert_eq!(document.line(0), Some(RopeSlice::from("hello")));
         assert_eq!(document.line(1), Some(RopeSlice::from("")));
         document.insert_newline();
         assert_eq!(document.len(), 3);
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 2));
+        assert_eq!(document.cursor(), Cursor::new(0, 2));
         assert_eq!(document.line(0), Some(RopeSlice::from("hello")));
         assert_eq!(document.line(1), Some(RopeSlice::from("")));
         assert_eq!(document.line(2), Some(RopeSlice::from("")));
@@ -598,11 +608,11 @@ mod tests {
         let mut document = Document::from("hello".as_bytes()).unwrap();
         document.move_cursor_horizontally(Direction::Forward(2));
         assert_eq!(document.len(), 1);
-        assert_eq!(document.cursor_coordinates(), Position::new(2, 0));
+        assert_eq!(document.cursor(), Cursor::new(2, 0));
 
         document.insert_newline();
         assert_eq!(document.len(), 2);
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 1));
+        assert_eq!(document.cursor(), Cursor::new(0, 1));
         assert_eq!(document.line(0), Some(RopeSlice::from("he")));
         assert_eq!(document.line(1), Some(RopeSlice::from("llo")));
     }
@@ -611,21 +621,21 @@ mod tests {
     fn document_move_cursor_to_line_start() {
         let mut document = Document::from("hello\nworld\n".as_bytes()).unwrap();
         document.move_cursor_horizontally(Direction::Forward(5));
-        assert_eq!(document.cursor_coordinates(), Position::new(5, 0));
+        assert_eq!(document.cursor(), Cursor::new(5, 0));
         document.move_cursor_to_line_start();
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_vertically(Direction::Forward(2));
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 2));
+        assert_eq!(document.cursor(), Cursor::new(0, 2));
     }
 
     #[test]
     fn document_move_cursor_to_line_end() {
         let mut document = Document::from("hello\n\nworld".as_bytes()).unwrap();
-        assert_eq!(document.cursor_coordinates(), Position::new(0, 0));
+        assert_eq!(document.cursor(), Cursor::new(0, 0));
         document.move_cursor_to_line_end();
-        assert_eq!(document.cursor_coordinates(), Position::new(5, 0));
+        assert_eq!(document.cursor(), Cursor::new(5, 0));
         document.move_cursor_vertically(Direction::Forward(2));
-        assert_eq!(document.cursor_coordinates(), Position::new(5, 2));
+        assert_eq!(document.cursor(), Cursor::new(5, 2));
     }
 
     #[test]

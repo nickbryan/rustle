@@ -8,6 +8,7 @@ edition = "2021"
 anyhow = "1"
 nom = "7.1"
 ropey = "1.6"
+taffy = "0.3"
 thiserror = "1"
 tokio = { version = "1", features = ["macros", "rt"] }
 tokio-stream = "0.1"

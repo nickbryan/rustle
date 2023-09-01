@@ -120,17 +120,6 @@ impl RopeExt for Rope {
             self.len_lines(),
         );
 
-        let columns = self
-            .line(line_idx)
-            .to_string()
-            .graphemes(true)
-            .map(render::grapheme_width)
-            .sum();
-        debug_assert!(
-            col_pos_idx <= columns,
-            "col_pos_idx={col_pos_idx} is out of bounds len={columns}",
-        );
-
         let mut cursor = self.line_to_char(line_idx);
         let mut visual_width_moved = 0;
 
@@ -280,13 +269,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "col_pos_idx=7 is out of bounds len=6")]
-    fn ropeext_visual_column_position_to_char_idx_char_bounds_check() {
-        let text = Rope::from("🏴󠁧󠁢󠁥󠁮󠁧󠁿👩‍🔬");
-        text.visual_column_position_to_char_idx(0, 7);
-    }
-
-    #[test]
     fn ropeext_visual_column_position_to_char_idx() {
         let text = Rope::from(
             "\
@@ -302,6 +284,9 @@ mod tests {
         assert_eq!(text.visual_column_position_to_char_idx(0, 4), 4);
         assert_eq!(text.visual_column_position_to_char_idx(0, 5), 5);
         assert_eq!(text.visual_column_position_to_char_idx(0, 6), 6);
+        // Caps to end of line.
+        assert_eq!(text.visual_column_position_to_char_idx(0, 100), 6);
+
         assert_eq!(text.visual_column_position_to_char_idx(1, 0), 6);
         assert_eq!(text.visual_column_position_to_char_idx(1, 1), 6);
         assert_eq!(text.visual_column_position_to_char_idx(1, 2), 13);

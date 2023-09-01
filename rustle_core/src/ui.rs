@@ -26,20 +26,20 @@ pub enum Color {
 /// A position in ui space.
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq)]
 pub struct Position {
-    pub col: usize,
-    pub row: usize,
+    pub col: u16,
+    pub row: u16,
 }
 
 impl Position {
     /// Create a new Position.
     #[must_use]
-    pub fn new(col: usize, row: usize) -> Self {
+    pub fn new(col: u16, row: u16) -> Self {
         Self { col, row }
     }
 }
 
-impl From<(usize, usize)> for Position {
-    fn from((col, row): (usize, usize)) -> Self {
+impl From<(u16, u16)> for Position {
+    fn from((col, row): (u16, u16)) -> Self {
         Self::new(col, row)
     }
 }
@@ -47,15 +47,15 @@ impl From<(usize, usize)> for Position {
 /// Rect represents an area/container in the ui.
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq)]
 pub struct Rect {
-    pub width: usize,
-    pub height: usize,
+    pub width: u16,
+    pub height: u16,
     pub position: Position,
 }
 
 impl Rect {
     /// Create a new Rect with default Position (0, 0).
     #[must_use]
-    pub fn new(width: usize, height: usize) -> Self {
+    pub fn new(width: u16, height: u16) -> Self {
         Self {
             width,
             height,
@@ -65,7 +65,7 @@ impl Rect {
 
     /// Create a new Rect with a set Position.
     #[must_use]
-    pub fn positioned(width: usize, height: usize, col: usize, row: usize) -> Self {
+    pub fn positioned(width: u16, height: u16, col: u16, row: u16) -> Self {
         Self {
             width,
             height,
@@ -76,30 +76,30 @@ impl Rect {
     /// Returns the area of the Rect.
     #[must_use]
     pub fn area(&self) -> usize {
-        self.width.saturating_mul(self.height)
+        self.width.saturating_mul(self.height).into()
     }
 
     /// Returns the leftmost possible value of the Rect. **Note**: This is zero based.
     #[must_use]
-    pub fn left(&self) -> usize {
+    pub fn left(&self) -> u16 {
         self.position.col
     }
 
     /// Returns the rightmost possible value of the Rect. **Note**: This is zero based.
     #[must_use]
-    pub fn right(&self) -> usize {
+    pub fn right(&self) -> u16 {
         self.position.col + self.width - 1
     }
 
     /// Returns the topmost possible value of the Rect. **Note**: This is zero based.
     #[must_use]
-    pub fn top(&self) -> usize {
+    pub fn top(&self) -> u16 {
         self.position.row
     }
 
     /// Returns the bottommost possible value of the Rect. **Note**: This is zero based.
     #[must_use]
-    pub fn bottom(&self) -> usize {
+    pub fn bottom(&self) -> u16 {
         self.position.row + self.height - 1
     }
 

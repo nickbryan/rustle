@@ -144,7 +144,7 @@ impl View for TextInput {
 
         if self.focused {
             frame.set_cursor_position(Position::new(
-                self.cursor_position + self.prompt.len(),
+                u16::try_from(self.cursor_position + self.prompt.len()).unwrap(),
                 self.position.row,
             ));
         }

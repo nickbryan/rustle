@@ -8,6 +8,7 @@ use crate::ui::{Position, Rect};
 use anyhow::{Context, Result};
 use std::fs::File;
 use std::io;
+use taffy::prelude::*;
 
 /// `Window` is the default root component for the `Editor`.
 pub struct Window {
@@ -17,14 +18,79 @@ pub struct Window {
     mode: Mode,
     size: Rect,
     msg: String,
+    layout: Taffy,
+    body_node: Node,
+    status_node: Node,
+    command_node: Node,
 }
 
 impl Window {
     pub fn new(size: Rect, mode: Mode) -> Self {
+        let mut layout = Taffy::new();
+
+        let body_node = layout
+            .new_leaf(Style {
+                size: Size {
+                    width: Dimension::Auto,
+                    height: Dimension::Auto,
+                },
+                flex_grow: 1.0,
+                ..Default::default()
+            })
+            .unwrap();
+
+        let status_node = layout
+            .new_leaf(Style {
+                size: Size {
+                    width: Dimension::Auto,
+                    height: Dimension::Points(1.0),
+                },
+                ..Default::default()
+            })
+            .unwrap();
+
+        let command_node = layout
+            .new_leaf(Style {
+                size: Size {
+                    width: Dimension::Auto,
+                    height: Dimension::Points(1.0),
+                },
+                ..Default::default()
+            })
+            .unwrap();
+
+        let root_node = layout
+            .new_with_children(
+                Style {
+                    flex_direction: FlexDirection::Column,
+                    justify_content: Some(JustifyContent::FlexEnd),
+                    size: Size {
+                        width: Dimension::Points(size.width as f32),
+                        height: Dimension::Points(size.height as f32),
+                    },
+                    ..Default::default()
+                },
+                &[body_node, status_node, command_node],
+            )
+            .unwrap();
+
+        layout
+            .compute_layout(
+                root_node,
+                Size {
+                    height: AvailableSpace::Definite(size.width as f32),
+                    width: AvailableSpace::Definite(size.height as f32),
+                },
+            )
+            .unwrap();
+
         let mut command_prompt = TextInput::new(
             ":",
             " Press : to enter a command...",
-            Position::new(0, size.bottom()),
+            Position::new(
+                layout.layout(command_node).unwrap().location.x as u16,
+                layout.layout(command_node).unwrap().location.y as u16,
+            ),
         );
 
         if let Mode::Execute = mode {
@@ -38,15 +104,19 @@ impl Window {
             mode,
             size,
             msg: String::new(),
+            layout,
+            body_node,
+            status_node,
+            command_node,
         }
     }
 
     fn buffer_space(&self) -> Rect {
         Rect::positioned(
-            self.size.width,
-            self.size.height,
-            self.size.left(),
-            self.size.bottom() - 2,
+            self.layout.layout(self.body_node).unwrap().size.width as u16,
+            self.layout.layout(self.body_node).unwrap().size.height as u16,
+            self.layout.layout(self.body_node).unwrap().location.x as u16,
+            self.layout.layout(self.body_node).unwrap().location.y as u16,
         )
     }
 }
@@ -83,13 +153,7 @@ impl Component for Window {
         }
 
         if !self.buffers.is_empty() {
-            let cmd = self.buffers[self.active_buffer_idx].update(msg);
-            self.msg = format!(
-                "{:?} | {:?}",
-                self.buffers[self.active_buffer_idx].cursor_position(),
-                self.buffers[self.active_buffer_idx].offset
-            );
-            return cmd;
+            return self.buffers[self.active_buffer_idx].update(msg);
         }
 
         Ok(None)
@@ -111,9 +175,25 @@ impl View for Window {
 
         if let Mode::Normal(_) | Mode::Insert = self.mode {
             frame.set_cursor_position(if self.buffers.is_empty() {
-                Position::default()
+                Position::new(
+                    self.layout.layout(self.body_node).unwrap().location.x as u16,
+                    self.layout.layout(self.body_node).unwrap().location.y as u16,
+                )
             } else {
-                self.buffers[self.active_buffer_idx].cursor_position()
+                Position::new(
+                    self.buffers[self.active_buffer_idx]
+                        .cursor_position()
+                        .col
+                        .saturating_add(
+                            self.layout.layout(self.body_node).unwrap().location.x as u16,
+                        ),
+                    self.buffers[self.active_buffer_idx]
+                        .cursor_position()
+                        .row
+                        .saturating_add(
+                            self.layout.layout(self.body_node).unwrap().location.y as u16,
+                        ),
+                )
             });
         }
 
@@ -122,7 +202,12 @@ impl View for Window {
         }
 
         StatusBar {
-            area: Rect::positioned(self.size.width, 1, self.size.left(), self.size.bottom() - 1),
+            area: Rect::positioned(
+                self.layout.layout(self.status_node).unwrap().size.width as u16,
+                self.layout.layout(self.status_node).unwrap().size.height as u16,
+                self.layout.layout(self.status_node).unwrap().location.x as u16,
+                self.layout.layout(self.status_node).unwrap().location.y as u16,
+            ),
             mode: self.mode.to_string(),
             line_count: len,
             cursor_position: frame.cursor_position(),
