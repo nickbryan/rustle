@@ -19,10 +19,10 @@ impl View for Welcome {
             .saturating_sub(u16::try_from(message.len()).unwrap())
             / 2;
         frame.write(
-            &Position {
-                col: padding,
-                row: self.size.top().saturating_add(self.size.height) / 3,
-            },
+            Position::new(
+                padding,
+                self.size.top().saturating_add(self.size.height) / 3,
+            ),
             &message,
             Color::default(),
             Color::default(),

@@ -21,7 +21,7 @@ impl View for StatusBar {
 
         let len = status.len() + line_indicator.len();
 
-        if usize::from(self.area.width) as usize > len {
+        if usize::from(self.area.width) > len {
             status.push_str(&" ".repeat(usize::from(self.area.width) - len));
         }
 
@@ -29,10 +29,7 @@ impl View for StatusBar {
         status.truncate(usize::from(self.area.width));
 
         frame.write(
-            &Position {
-                col: 0,
-                row: self.area.top(),
-            },
+            Position::new(0, self.area.top()),
             &status,
             Color::Rgb(128, 119, 106),
             Color::Rgb(59, 56, 54),

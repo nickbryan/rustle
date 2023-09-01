@@ -11,7 +11,7 @@ use rustle_core::{
     Canvas, Cell,
 };
 use rustle_core::{Event, EventStream, Key as CoreKey};
-use std::io::{self, Error as IoError, Write};
+use std::io::{Error as IoError, Write};
 
 /// Newtype to allow mapping RustleColor to CrosstermColor.
 struct Color(RustleColor);
@@ -97,12 +97,7 @@ impl<W: Write> Canvas for CrosstermCanvas<W> {
     }
 
     fn position_cursor(&mut self, row: u16, col: u16) -> Result<(), IoError> {
-        let x =
-            u16::try_from(col).map_err(|e| IoError::new(io::ErrorKind::Other, format!("{}", e)))?;
-        let y =
-            u16::try_from(row).map_err(|e| IoError::new(io::ErrorKind::Other, format!("{}", e)))?;
-
-        crossterm::queue!(self.out, MoveTo(x, y))
+        crossterm::queue!(self.out, MoveTo(col, row))
     }
 
     fn show_cursor(&mut self) -> Result<(), IoError> {

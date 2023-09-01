@@ -161,10 +161,7 @@ impl View for Buffer {
     fn render_to(&self, frame: &mut crate::render::Frame) {
         for row_in_view in 0..self.viewport.height {
             frame.write(
-                &Position {
-                    col: 0,
-                    row: self.viewport.top().saturating_add(row_in_view),
-                },
+                Position::new(0, self.viewport.top().saturating_add(row_in_view)),
                 format!(
                     "{:1$} ",
                     (usize::from(row_in_view) + self.cursor_offset.row).saturating_add(1),
@@ -184,10 +181,10 @@ impl View for Buffer {
                     let end = start + usize::from(self.viewport.width);
                     let row = row.slice(start..end.min(row.len_chars())).to_string();
                     frame.write(
-                        &Position {
-                            col: self.margin_width(),
-                            row: self.viewport.top().saturating_add(row_in_view),
-                        },
+                        Position::new(
+                            self.margin_width(),
+                            self.viewport.top().saturating_add(row_in_view),
+                        ),
                         &row,
                         Color::Rgb(236, 226, 195),
                         Color::default(),
@@ -195,10 +192,7 @@ impl View for Buffer {
                 }
             } else {
                 frame.write(
-                    &Position {
-                        col: 0,
-                        row: self.viewport.top().saturating_add(row_in_view),
-                    },
+                    Position::new(0, self.viewport.top().saturating_add(row_in_view)),
                     "~",
                     Color::Rgb(74, 68, 65),
                     Color::default(),

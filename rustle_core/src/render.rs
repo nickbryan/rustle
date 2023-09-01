@@ -163,7 +163,7 @@ impl Frame {
         updates
     }
 
-    fn index_of(&self, position: &Position) -> Result<usize, OutOfBoundsError> {
+    fn index_of(&self, position: Position) -> Result<usize, OutOfBoundsError> {
         if self.area.contains(position) {
             let index = ((position.row - self.area.position.row) * self.area.width)
                 + (position.col - self.area.position.col);
@@ -184,7 +184,7 @@ impl Frame {
     /// given line. If the string does not fill the line it, the rest of the line will be cleared.
     pub fn write(
         &mut self,
-        position: &Position,
+        position: Position,
         string: &str,
         foreground: Color,
         background: Color,

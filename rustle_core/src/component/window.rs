@@ -16,12 +16,10 @@ pub struct Window {
     buffers: Vec<Buffer>,
     command_prompt: TextInput,
     mode: Mode,
-    size: Rect,
     msg: String,
     layout: Taffy,
     body_node: Node,
     status_node: Node,
-    command_node: Node,
 }
 
 impl Window {
@@ -65,8 +63,8 @@ impl Window {
                     flex_direction: FlexDirection::Column,
                     justify_content: Some(JustifyContent::FlexEnd),
                     size: Size {
-                        width: Dimension::Points(size.width as f32),
-                        height: Dimension::Points(size.height as f32),
+                        width: Dimension::Points(f32::from(size.width)),
+                        height: Dimension::Points(f32::from(size.height)),
                     },
                     ..Default::default()
                 },
@@ -78,8 +76,8 @@ impl Window {
             .compute_layout(
                 root_node,
                 Size {
-                    height: AvailableSpace::Definite(size.width as f32),
-                    width: AvailableSpace::Definite(size.height as f32),
+                    height: AvailableSpace::Definite(f32::from(size.width)),
+                    width: AvailableSpace::Definite(f32::from(size.height)),
                 },
             )
             .unwrap();
@@ -87,10 +85,7 @@ impl Window {
         let mut command_prompt = TextInput::new(
             ":",
             " Press : to enter a command...",
-            Position::new(
-                layout.layout(command_node).unwrap().location.x as u16,
-                layout.layout(command_node).unwrap().location.y as u16,
-            ),
+            layout.layout(command_node).unwrap().location.into(),
         );
 
         if let Mode::Execute = mode {
@@ -102,22 +97,15 @@ impl Window {
             buffers: Vec::default(),
             command_prompt,
             mode,
-            size,
             msg: String::new(),
             layout,
             body_node,
             status_node,
-            command_node,
         }
     }
 
     fn buffer_space(&self) -> Rect {
-        Rect::positioned(
-            self.layout.layout(self.body_node).unwrap().size.width as u16,
-            self.layout.layout(self.body_node).unwrap().size.height as u16,
-            self.layout.layout(self.body_node).unwrap().location.x as u16,
-            self.layout.layout(self.body_node).unwrap().location.y as u16,
-        )
+        self.layout.layout(self.body_node).unwrap().into()
     }
 }
 
@@ -175,24 +163,19 @@ impl View for Window {
 
         if let Mode::Normal(_) | Mode::Insert = self.mode {
             frame.set_cursor_position(if self.buffers.is_empty() {
-                Position::new(
-                    self.layout.layout(self.body_node).unwrap().location.x as u16,
-                    self.layout.layout(self.body_node).unwrap().location.y as u16,
-                )
+                self.layout.layout(self.body_node).unwrap().location.into()
             } else {
+                let body_position: Position =
+                    self.layout.layout(self.body_node).unwrap().location.into();
                 Position::new(
                     self.buffers[self.active_buffer_idx]
                         .cursor_position()
                         .col
-                        .saturating_add(
-                            self.layout.layout(self.body_node).unwrap().location.x as u16,
-                        ),
+                        .saturating_add(body_position.col),
                     self.buffers[self.active_buffer_idx]
                         .cursor_position()
                         .row
-                        .saturating_add(
-                            self.layout.layout(self.body_node).unwrap().location.y as u16,
-                        ),
+                        .saturating_add(body_position.row),
                 )
             });
         }
@@ -202,12 +185,7 @@ impl View for Window {
         }
 
         StatusBar {
-            area: Rect::positioned(
-                self.layout.layout(self.status_node).unwrap().size.width as u16,
-                self.layout.layout(self.status_node).unwrap().size.height as u16,
-                self.layout.layout(self.status_node).unwrap().location.x as u16,
-                self.layout.layout(self.status_node).unwrap().location.y as u16,
-            ),
+            area: self.layout.layout(self.status_node).unwrap().into(),
             mode: self.mode.to_string(),
             line_count: len,
             cursor_position: frame.cursor_position(),

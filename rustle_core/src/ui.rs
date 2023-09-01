@@ -1,3 +1,6 @@
+use taffy::geometry::Point;
+use taffy::layout::Layout;
+
 /// Colors supported by the editor.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum Color {
@@ -41,6 +44,13 @@ impl Position {
 impl From<(u16, u16)> for Position {
     fn from((col, row): (u16, u16)) -> Self {
         Self::new(col, row)
+    }
+}
+
+impl From<Point<f32>> for Position {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    fn from(point: Point<f32>) -> Self {
+        Self::new(point.x as u16, point.y as u16)
     }
 }
 
@@ -106,10 +116,22 @@ impl Rect {
     /// Check if the given position is within the Rect, taking the Rect's Position into
     /// consideration.
     #[must_use]
-    pub fn contains(&self, position: &Position) -> bool {
-        let Position { col, row } = *position;
+    pub fn contains(&self, position: Position) -> bool {
+        let Position { col, row } = position;
 
         col >= self.left() && col <= self.right() && row >= self.top() && row <= self.bottom()
+    }
+}
+
+impl From<&Layout> for Rect {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    fn from(layout: &Layout) -> Self {
+        Rect::positioned(
+            layout.size.width as u16,
+            layout.size.height as u16,
+            layout.location.x as u16,
+            layout.location.y as u16,
+        )
     }
 }
 
@@ -179,12 +201,12 @@ mod tests {
     #[test]
     fn contains_returns_true_if_position_contained() {
         let r = Rect::new(10, 10);
-        assert!(r.contains(&Position::new(9, 9)));
+        assert!(r.contains(Position::new(9, 9)));
     }
 
     #[test]
     fn contains_returns_false_if_position_not_contained() {
         let r = Rect::positioned(10, 10, 10, 10);
-        assert!(!r.contains(&Position::new(20, 20)));
+        assert!(!r.contains(Position::new(20, 20)));
     }
 }
