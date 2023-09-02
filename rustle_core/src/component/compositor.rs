@@ -18,16 +18,16 @@ pub struct Compositor {
     document_name_indexes: HashMap<String, usize>,
     command_prompt: TextInput,
     mode: Mode,
-    layout: Taffy,
+    taffy: Taffy,
     body_node: Node,
     status_node: Node,
 }
 
 impl Compositor {
     pub fn new(size: Rect, mode: Mode) -> Self {
-        let mut layout = Taffy::new();
+        let mut taffy = Taffy::new();
 
-        let body_node = layout
+        let body_node = taffy
             .new_leaf(Style {
                 size: Size {
                     width: Dimension::Auto,
@@ -38,7 +38,7 @@ impl Compositor {
             })
             .unwrap();
 
-        let status_node = layout
+        let status_node = taffy
             .new_leaf(Style {
                 size: Size {
                     width: Dimension::Auto,
@@ -48,7 +48,7 @@ impl Compositor {
             })
             .unwrap();
 
-        let command_node = layout
+        let command_node = taffy
             .new_leaf(Style {
                 size: Size {
                     width: Dimension::Auto,
@@ -58,7 +58,7 @@ impl Compositor {
             })
             .unwrap();
 
-        let root_node = layout
+        let root_node = taffy
             .new_with_children(
                 Style {
                     flex_direction: FlexDirection::Column,
@@ -73,7 +73,7 @@ impl Compositor {
             )
             .unwrap();
 
-        layout
+        taffy
             .compute_layout(
                 root_node,
                 Size {
@@ -86,7 +86,7 @@ impl Compositor {
         let mut command_prompt = TextInput::new(
             ":",
             " Press : to enter a command...",
-            layout.layout(command_node).unwrap().location.into(),
+            taffy.layout(command_node).unwrap().location.into(),
         );
 
         if let Mode::Execute = mode {
@@ -99,14 +99,14 @@ impl Compositor {
             document_name_indexes: HashMap::new(),
             command_prompt,
             mode,
-            layout,
+            taffy,
             body_node,
             status_node,
         }
     }
 
     fn buffer_space(&self) -> Rect {
-        self.layout.layout(self.body_node).unwrap().into()
+        self.taffy.layout(self.body_node).unwrap().into()
     }
 }
 
@@ -127,6 +127,37 @@ impl Component for Compositor {
             }
 
             self.mode = mode;
+        }
+
+        if let Message::VisualSplit = msg.clone() {
+            let bufferspace = self.buffer_space();
+
+            self.documents[self.active_document_idx].1.set_viewport(
+                0,
+                Rect::positioned(
+                    bufferspace.width / 2,
+                    bufferspace.height,
+                    bufferspace.left(),
+                    bufferspace.top(),
+                ),
+            );
+            self.documents[self.active_document_idx]
+                .1
+                .add_viewport(Rect::positioned(
+                    bufferspace.width / 2,
+                    bufferspace.height,
+                    bufferspace.width / 2,
+                    bufferspace.top(),
+                ));
+            self.documents[self.active_document_idx]
+                .1
+                .set_active_viewport(1);
+        }
+
+        if let Message::PreviousWindow = msg.clone() {
+            self.documents[self.active_document_idx]
+                .1
+                .set_active_viewport(0);
         }
 
         if let Message::Open(path) = msg.clone() {
@@ -186,10 +217,10 @@ impl View for Compositor {
 
         if let Mode::Normal(_) | Mode::Insert = self.mode {
             frame.set_cursor_position(if self.documents.is_empty() {
-                self.layout.layout(self.body_node).unwrap().location.into()
+                self.taffy.layout(self.body_node).unwrap().location.into()
             } else {
                 let body_position: Position =
-                    self.layout.layout(self.body_node).unwrap().location.into();
+                    self.taffy.layout(self.body_node).unwrap().location.into();
                 Position::new(
                     self.documents[self.active_document_idx]
                         .1
@@ -210,7 +241,7 @@ impl View for Compositor {
         }
 
         StatusBar {
-            area: self.layout.layout(self.status_node).unwrap().into(),
+            area: self.taffy.layout(self.status_node).unwrap().into(),
             mode: self.mode.to_string(),
             line_count: len,
             cursor_position: frame.cursor_position(), // TODO: not accounting for margin.

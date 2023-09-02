@@ -43,7 +43,7 @@ fn command_for_input(input: &str) -> Option<Message> {
 
 fn open(input: &str) -> IResult<&str, Message> {
     map(
-        separated_pair(char('e'), char(' '), many1(anychar)),
+        separated_pair(char('o'), char(' '), many1(anychar)),
         |(_, name)| Message::Open(name.into_iter().collect::<String>()),
     )(input)
 }
@@ -83,9 +83,9 @@ mod tests {
 
     #[test]
     fn test_open() {
-        assert!(open("e").is_err());
+        assert!(open("o").is_err());
         assert_eq!(
-            open("e test.txt"),
+            open("o test.txt"),
             Ok(("", Message::Open("test.txt".into())))
         );
     }

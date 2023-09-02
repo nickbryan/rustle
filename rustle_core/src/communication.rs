@@ -32,6 +32,10 @@ pub enum Message {
     BufferNext,
     BufferPrevious,
 
+    VisualSplit,
+
+    PreviousWindow,
+
     Quit,
 }
 

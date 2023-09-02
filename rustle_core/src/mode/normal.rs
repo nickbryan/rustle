@@ -33,6 +33,8 @@ impl Normal {
             Key::Enter => Some(Message::MoveCursorDown(1)),
             Key::Left => Some(Message::BufferPrevious),
             Key::Right => Some(Message::BufferNext),
+            Key::Up => Some(Message::VisualSplit),
+            Key::Down => Some(Message::PreviousWindow),
             _ => None,
         }
         .map_or_else(

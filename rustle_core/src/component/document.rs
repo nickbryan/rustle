@@ -31,13 +31,27 @@ impl Cursor {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct Document {
     text: Rope,
-    selection: Selection,
-    desired_visual_col: usize,
-    cursor_offset: Cursor,
-    viewport: Rect,
+    selections: Vec<Selection>,
+    desired_visual_cols: Vec<usize>,
+    cursor_offsets: Vec<Cursor>,
+    viewport_id: usize,
+    viewports: Vec<Rect>,
+}
+
+impl Default for Document {
+    fn default() -> Self {
+        Self {
+            text: Rope::default(),
+            selections: Vec::from([Selection::default()]),
+            desired_visual_cols: Vec::from([0]),
+            viewport_id: 0,
+            viewports: Vec::from([Rect::default()]),
+            cursor_offsets: Vec::from([Cursor::default()]),
+        }
+    }
 }
 
 impl Document {
@@ -45,10 +59,11 @@ impl Document {
     pub(crate) fn new(viewport: Rect) -> Self {
         Self {
             text: Rope::default(),
-            selection: Selection::default(),
-            desired_visual_col: 0,
-            viewport,
-            cursor_offset: Cursor::default(),
+            selections: Vec::from([Selection::default()]),
+            desired_visual_cols: Vec::from([0]),
+            viewport_id: 0,
+            viewports: Vec::from([viewport]),
+            cursor_offsets: Vec::from([Cursor::default()]),
         }
     }
 
@@ -56,11 +71,27 @@ impl Document {
     pub(crate) fn from(viewport: Rect, reader: impl Read) -> Result<Self> {
         Ok(Self {
             text: Rope::from_reader(reader).context("creating rope from reader")?,
-            selection: Selection::default(),
-            desired_visual_col: 0,
-            viewport,
-            cursor_offset: Cursor::default(),
+            selections: Vec::from([Selection::default()]),
+            desired_visual_cols: Vec::from([0]),
+            viewport_id: 0,
+            viewports: Vec::from([viewport]),
+            cursor_offsets: Vec::from([Cursor::default()]),
         })
+    }
+
+    pub(crate) fn add_viewport(&mut self, viewport: Rect) {
+        self.viewports.push(viewport);
+        self.selections.push(Selection::default());
+        self.desired_visual_cols.push(0);
+        self.cursor_offsets.push(Cursor::default());
+    }
+
+    pub(crate) fn set_viewport(&mut self, viewport_id: usize, viewport: Rect) {
+        self.viewports[viewport_id] = viewport;
+    }
+
+    pub(crate) fn set_active_viewport(&mut self, viewport_id: usize) {
+        self.viewport_id = viewport_id;
     }
 
     pub(crate) fn len(&self) -> usize {
@@ -69,117 +100,141 @@ impl Document {
 
     fn cursor(&self) -> Cursor {
         Cursor::new(
-            self.text.visual_column_position(self.selection.head),
-            self.text.char_to_line(self.selection.head),
+            self.text
+                .visual_column_position(self.selections[self.viewport_id].head),
+            self.text
+                .char_to_line(self.selections[self.viewport_id].head),
         )
     }
 
     fn move_cursor_horizontally(&mut self, direction: Direction) {
         match direction {
             Direction::Forward(chars) => {
-                self.selection.head = self
+                self.selections[self.viewport_id].head = self
                     .text
-                    .nth_next_grapheme_boundary(self.selection.head, chars);
-                self.selection.anchor = self
+                    .nth_next_grapheme_boundary(self.selections[self.viewport_id].head, chars);
+                self.selections[self.viewport_id].anchor = self
                     .text
-                    .nth_next_grapheme_boundary(self.selection.anchor, chars);
+                    .nth_next_grapheme_boundary(self.selections[self.viewport_id].anchor, chars);
             }
             Direction::Backward(chars) => {
-                self.selection.head = self
+                self.selections[self.viewport_id].head = self
                     .text
-                    .nth_prev_grapheme_boundary(self.selection.head, chars);
-                self.selection.anchor = self
+                    .nth_prev_grapheme_boundary(self.selections[self.viewport_id].head, chars);
+                self.selections[self.viewport_id].anchor = self
                     .text
-                    .nth_prev_grapheme_boundary(self.selection.anchor, chars);
+                    .nth_prev_grapheme_boundary(self.selections[self.viewport_id].anchor, chars);
             }
         };
 
-        self.desired_visual_col = self.text.visual_column_position(self.selection.head);
+        self.desired_visual_cols[self.viewport_id] = self
+            .text
+            .visual_column_position(self.selections[self.viewport_id].head);
     }
 
     fn move_cursor_vertically(&mut self, direction: Direction) {
         match direction {
             Direction::Forward(lines) => {
-                let current_line = self.text.char_to_line(self.selection.head);
+                let current_line = self
+                    .text
+                    .char_to_line(self.selections[self.viewport_id].head);
                 let target_line = current_line
                     .saturating_add(lines)
                     .min(self.text.len_lines().saturating_sub(1));
 
-                self.selection.head = self.text.line_to_char(target_line);
+                self.selections[self.viewport_id].head = self.text.line_to_char(target_line);
 
-                if self.desired_visual_col > 0 {
-                    self.selection.head = self
-                        .text
-                        .visual_column_position_to_char_idx(target_line, self.desired_visual_col);
+                if self.desired_visual_cols[self.viewport_id] > 0 {
+                    self.selections[self.viewport_id].head =
+                        self.text.visual_column_position_to_char_idx(
+                            target_line,
+                            self.desired_visual_cols[self.viewport_id],
+                        );
                 }
 
                 if target_line.saturating_add(1) < self.text.len_lines() {
-                    self.selection.head = self.selection.head.min(
+                    self.selections[self.viewport_id].head =
+                        self.selections[self.viewport_id].head.min(
+                            self.text
+                                .line_to_char(target_line.saturating_add(1))
+                                .saturating_sub(1),
+                        );
+                }
+                self.selections[self.viewport_id].anchor = self.selections[self.viewport_id].head;
+            }
+            Direction::Backward(lines) => {
+                let current_line = self
+                    .text
+                    .char_to_line(self.selections[self.viewport_id].head);
+                let target_line = current_line.saturating_sub(lines);
+
+                self.selections[self.viewport_id].head = self.text.line_to_char(target_line);
+
+                if self.desired_visual_cols[self.viewport_id] > 0 {
+                    self.selections[self.viewport_id].head =
+                        self.text.visual_column_position_to_char_idx(
+                            target_line,
+                            self.desired_visual_cols[self.viewport_id],
+                        );
+                }
+
+                self.selections[self.viewport_id].head =
+                    self.selections[self.viewport_id].head.min(
                         self.text
                             .line_to_char(target_line.saturating_add(1))
                             .saturating_sub(1),
                     );
-                }
-                self.selection.anchor = self.selection.head;
-            }
-            Direction::Backward(lines) => {
-                let current_line = self.text.char_to_line(self.selection.head);
-                let target_line = current_line.saturating_sub(lines);
-
-                self.selection.head = self.text.line_to_char(target_line);
-
-                if self.desired_visual_col > 0 {
-                    self.selection.head = self
-                        .text
-                        .visual_column_position_to_char_idx(target_line, self.desired_visual_col);
-                }
-
-                self.selection.head = self.selection.head.min(
-                    self.text
-                        .line_to_char(target_line.saturating_add(1))
-                        .saturating_sub(1),
-                );
-                self.selection.anchor = self.selection.head;
+                self.selections[self.viewport_id].anchor = self.selections[self.viewport_id].head;
             }
         };
     }
 
     fn move_cursor_to_line_start(&mut self) {
-        self.selection.head = self
-            .text
-            .line_to_char(self.text.char_to_line(self.selection.head));
-        self.selection.anchor = self.selection.head;
+        self.selections[self.viewport_id].head = self.text.line_to_char(
+            self.text
+                .char_to_line(self.selections[self.viewport_id].head),
+        );
+        self.selections[self.viewport_id].anchor = self.selections[self.viewport_id].head;
 
-        self.desired_visual_col = self.text.visual_column_position(self.selection.head);
+        self.desired_visual_cols[self.viewport_id] = self
+            .text
+            .visual_column_position(self.selections[self.viewport_id].head);
     }
 
     fn move_cursor_to_line_end(&mut self) {
-        self.selection.head = self.text.prev_grapheme_boundary(
-            self.text
-                .line_to_char(self.text.char_to_line(self.selection.head) + 1),
+        self.selections[self.viewport_id].head = self.text.prev_grapheme_boundary(
+            self.text.line_to_char(
+                self.text
+                    .char_to_line(self.selections[self.viewport_id].head)
+                    + 1,
+            ),
         );
-        self.selection.anchor = self.selection.head;
-        self.desired_visual_col = self.text.visual_column_position(self.selection.head);
+        self.selections[self.viewport_id].anchor = self.selections[self.viewport_id].head;
+        self.desired_visual_cols[self.viewport_id] = self
+            .text
+            .visual_column_position(self.selections[self.viewport_id].head);
     }
 
     fn delete(&mut self, direction: Direction) {
         match direction {
             Direction::Forward(chars) => self.text.remove(
-                self.selection.head
+                self.selections[self.viewport_id].head
                     ..self
                         .text
-                        .nth_next_grapheme_boundary(self.selection.head, chars),
+                        .nth_next_grapheme_boundary(self.selections[self.viewport_id].head, chars),
             ),
             Direction::Backward(chars) => {
-                let start = self.selection.head;
+                let start = self.selections[self.viewport_id].head;
                 self.move_cursor_horizontally(Direction::Backward(chars));
-                self.text.remove(self.selection.head..start);
+                self.text
+                    .remove(self.selections[self.viewport_id].head..start);
             }
         };
     }
 
     fn insert(&mut self, ch: char) {
-        self.text.insert_char(self.selection.head, ch);
+        self.text
+            .insert_char(self.selections[self.viewport_id].head, ch);
         self.move_cursor_horizontally(Direction::Forward(1));
     }
 
@@ -207,59 +262,61 @@ impl Document {
 
     pub(crate) fn cursor_position(&self) -> Position {
         Position::new(
-            self.margin_width().saturating_add(
+            self.viewports[self.viewport_id].left().saturating_add(
+                self.margin_width().saturating_add(
+                    self.cursor()
+                        .col
+                        .saturating_sub(self.cursor_offsets[self.viewport_id].col)
+                        .try_into()
+                        .unwrap(),
+                ),
+            ),
+            self.viewports[self.viewport_id].top().saturating_add(
                 self.cursor()
-                    .col
-                    .saturating_sub(self.cursor_offset.col)
+                    .row
+                    .saturating_sub(self.cursor_offsets[self.viewport_id].row)
                     .try_into()
                     .unwrap(),
             ),
-            self.cursor()
-                .row
-                .saturating_sub(self.cursor_offset.row)
-                .try_into()
-                .unwrap(),
         )
     }
 
     pub(crate) fn scroll(&mut self) {
         let Cursor { col, row } = self.cursor();
-        let width = self.viewport.width - self.margin_width();
-        let height = self.viewport.height;
+        let width = self.viewports[self.viewport_id].width - self.margin_width();
+        let height = self.viewports[self.viewport_id].height;
 
-        let offset_row = if row < self.cursor_offset.row {
+        let offset_row = if row < self.cursor_offsets[self.viewport_id].row {
             row
-        } else if row < self.cursor_offset.row.saturating_add(5) {
-            self.cursor_offset.row.saturating_sub(1)
+        } else if row < self.cursor_offsets[self.viewport_id].row.saturating_add(5) {
+            self.cursor_offsets[self.viewport_id].row.saturating_sub(1)
         } else if row
-            >= self
-                .cursor_offset
+            >= self.cursor_offsets[self.viewport_id]
                 .row
                 .saturating_add(height.saturating_sub(6).into())
         {
             row.saturating_sub(height.saturating_sub(5).into())
                 .saturating_add(1)
         } else {
-            self.cursor_offset.row
+            self.cursor_offsets[self.viewport_id].row
         };
 
-        let offset_col = if col < self.cursor_offset.col {
+        let offset_col = if col < self.cursor_offsets[self.viewport_id].col {
             col.saturating_sub(5)
-        } else if col < self.cursor_offset.col.saturating_add(5) {
-            self.cursor_offset.col.saturating_sub(1)
+        } else if col < self.cursor_offsets[self.viewport_id].col.saturating_add(5) {
+            self.cursor_offsets[self.viewport_id].col.saturating_sub(1)
         } else if col
-            >= self
-                .cursor_offset
+            >= self.cursor_offsets[self.viewport_id]
                 .col
                 .saturating_add(width.saturating_sub(5).into())
         {
             col.saturating_sub(width.saturating_sub(5).into())
                 .saturating_add(1)
         } else {
-            self.cursor_offset.col
+            self.cursor_offsets[self.viewport_id].col
         };
 
-        self.cursor_offset = Cursor {
+        self.cursor_offsets[self.viewport_id] = Cursor {
             col: offset_col,
             row: offset_row,
         };
@@ -280,10 +337,14 @@ impl Document {
                 self.move_cursor_horizontally(Direction::Forward(*n));
             }
             Message::MoveCursorPageUp => {
-                self.move_cursor_vertically(Direction::Backward(self.viewport.height.into()));
+                self.move_cursor_vertically(Direction::Backward(
+                    self.viewports[self.viewport_id].height.into(),
+                ));
             }
             Message::MoveCursorPageDown => {
-                self.move_cursor_vertically(Direction::Forward(self.viewport.height.into()));
+                self.move_cursor_vertically(Direction::Forward(
+                    self.viewports[self.viewport_id].height.into(),
+                ));
             }
             Message::MoveCursorLineStart => self.move_cursor_to_line_start(),
             Message::MoveCursorLineEnd => self.move_cursor_to_line_end(),
@@ -318,41 +379,46 @@ impl Component for Document {
 
 impl View for Document {
     fn render_to(&self, frame: &mut crate::render::Frame) {
-        for row_in_view in 0..self.viewport.height {
-            frame.write(
-                Position::new(0, self.viewport.top().saturating_add(row_in_view)),
-                format!(
-                    "{:1$} ",
-                    (usize::from(row_in_view) + self.cursor_offset.row).saturating_add(1),
-                    usize::from(self.margin_width().saturating_sub(1))
-                )
-                .as_str(),
-                Color::Rgb(113, 105, 95),
-                Color::default(),
-            );
+        for viewport in &self.viewports {
+            for row_in_view in 0..viewport.height {
+                frame.write(
+                    Position::new(viewport.left(), viewport.top().saturating_add(row_in_view)),
+                    format!(
+                        "{:1$} ",
+                        (usize::from(row_in_view) + self.cursor_offsets[self.viewport_id].row)
+                            .saturating_add(1),
+                        usize::from(self.margin_width().saturating_sub(1))
+                    )
+                    .as_str(),
+                    Color::Rgb(113, 105, 95),
+                    Color::default(),
+                );
 
-            if let Some(row) = self.line(usize::from(row_in_view) + self.cursor_offset.row) {
-                let start = self.cursor_offset.col;
-                if start <= row.len_chars() {
-                    let end = start + usize::from(self.viewport.width);
-                    let row = row.slice(start..end.min(row.len_chars())).to_string();
+                if let Some(row) =
+                    self.line(usize::from(row_in_view) + self.cursor_offsets[self.viewport_id].row)
+                {
+                    let start = self.cursor_offsets[self.viewport_id].col;
+                    if start <= row.len_chars() {
+                        let end = start + usize::from(viewport.width);
+                        let row = row.slice(start..end.min(row.len_chars())).to_string();
+                        frame.write(
+                            Position::new(
+                                viewport.left() + self.margin_width(),
+                                viewport.top().saturating_add(row_in_view),
+                            ),
+                            &row,
+                            Color::Rgb(236, 226, 195),
+                            Color::default(),
+                        );
+                    }
+                } else {
                     frame.write(
-                        Position::new(
-                            self.margin_width(),
-                            self.viewport.top().saturating_add(row_in_view),
-                        ),
-                        &row,
-                        Color::Rgb(236, 226, 195),
+                        Position::new(viewport.left(), viewport.top().saturating_add(row_in_view)),
+                        "~",
+                        Color::Rgb(74, 68, 65),
                         Color::default(),
                     );
                 }
-            } else {
-                frame.write(
-                    Position::new(0, self.viewport.top().saturating_add(row_in_view)),
-                    "~",
-                    Color::Rgb(74, 68, 65),
-                    Color::default(),
-                );
             }
         }
     }

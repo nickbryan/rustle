@@ -209,7 +209,7 @@ impl Frame {
             cursor += grapheme_width(grapheme);
         }
 
-        for i in cursor..str_start + usize::from(self.area.width) {
+        for i in cursor..str_start + usize::from(self.area.width - position.col) {
             if self.cells.get(i).is_some() {
                 self.cells[i].reset();
             }
