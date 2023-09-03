@@ -282,38 +282,42 @@ impl Document {
     }
 
     pub(crate) fn scroll(&mut self) {
-        let Cursor { col, row } = self.cursor();
-        let width = self.viewports[self.viewport_id].width - self.margin_width();
-        let height = self.viewports[self.viewport_id].height;
+        let cursor = self.cursor();
+        let (width, height) = (
+            self.viewports[self.viewport_id].width - self.margin_width(),
+            self.viewports[self.viewport_id].height,
+        );
 
-        let offset_row = if row < self.cursor_offsets[self.viewport_id].row {
-            row
-        } else if row < self.cursor_offsets[self.viewport_id].row.saturating_add(5) {
-            self.cursor_offsets[self.viewport_id].row.saturating_sub(1)
-        } else if row
-            >= self.cursor_offsets[self.viewport_id]
-                .row
-                .saturating_add(height.saturating_sub(6).into())
-        {
-            row.saturating_sub(height.saturating_sub(5).into())
-                .saturating_add(1)
-        } else {
-            self.cursor_offsets[self.viewport_id].row
+        let offset_row = match cursor.row {
+            row if row < self.cursor_offsets[self.viewport_id].row => row,
+            row if row < self.cursor_offsets[self.viewport_id].row.saturating_add(5) => {
+                self.cursor_offsets[self.viewport_id].row.saturating_sub(1)
+            }
+            row if row
+                >= self.cursor_offsets[self.viewport_id]
+                    .row
+                    .saturating_add(height.saturating_sub(6).into()) =>
+            {
+                row.saturating_sub(height.saturating_sub(5).into())
+                    .saturating_add(1)
+            }
+            _ => self.cursor_offsets[self.viewport_id].row,
         };
 
-        let offset_col = if col < self.cursor_offsets[self.viewport_id].col {
-            col.saturating_sub(5)
-        } else if col < self.cursor_offsets[self.viewport_id].col.saturating_add(5) {
-            self.cursor_offsets[self.viewport_id].col.saturating_sub(1)
-        } else if col
-            >= self.cursor_offsets[self.viewport_id]
-                .col
-                .saturating_add(width.saturating_sub(5).into())
-        {
-            col.saturating_sub(width.saturating_sub(5).into())
-                .saturating_add(1)
-        } else {
-            self.cursor_offsets[self.viewport_id].col
+        let offset_col = match cursor.col {
+            col if col < self.cursor_offsets[self.viewport_id].col => col.saturating_sub(5),
+            col if col < self.cursor_offsets[self.viewport_id].col.saturating_add(5) => {
+                self.cursor_offsets[self.viewport_id].col.saturating_sub(1)
+            }
+            col if col
+                >= self.cursor_offsets[self.viewport_id]
+                    .col
+                    .saturating_add(width.saturating_sub(5).into()) =>
+            {
+                col.saturating_sub(width.saturating_sub(5).into())
+                    .saturating_add(1)
+            }
+            _ => self.cursor_offsets[self.viewport_id].col,
         };
 
         self.cursor_offsets[self.viewport_id] = Cursor {
