@@ -41,12 +41,6 @@ impl Position {
     }
 }
 
-impl From<(u16, u16)> for Position {
-    fn from((col, row): (u16, u16)) -> Self {
-        Self::new(col, row)
-    }
-}
-
 impl From<Point<f32>> for Position {
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn from(point: Point<f32>) -> Self {
@@ -138,74 +132,99 @@ impl From<&Layout> for Rect {
 #[cfg(test)]
 mod tests {
     use super::{Position, Rect};
+    use taffy::geometry::Point;
+    use taffy::layout::Layout;
+    use taffy::prelude::Size;
 
     #[test]
-    fn new_sets_default_position() {
+    fn position_from_point_sets_col_and_row() {
+        let p = Position::from(Point { x: 1.0, y: 2.0 });
+        assert_eq!(p.col, 1);
+        assert_eq!(p.row, 2);
+    }
+
+    #[test]
+    fn rect_new_sets_default_position() {
         let r = Rect::new(0, 0);
         assert_eq!(r.position.col, 0);
         assert_eq!(r.position.row, 0);
     }
 
     #[test]
-    fn positioned_sets_position() {
+    fn rect_positioned_sets_position() {
         let r = Rect::positioned(0, 0, 10, 20);
         assert_eq!(r.position.col, 10);
         assert_eq!(r.position.row, 20);
     }
 
     #[test]
-    fn area_is_calculated() {
+    fn rect_from_layout_sets_col_and_row() {
+        let mut layout = Layout::new();
+        layout.size = Size {
+            width: 100.0,
+            height: 200.0,
+        };
+        layout.location = Point { x: 3.0, y: 5.0 };
+        assert_eq!(Rect::from(&layout), Rect::positioned(100, 200, 3, 5));
+    }
+
+    #[test]
+    fn rect_area_is_calculated() {
         assert_eq!(Rect::new(10, 10).area(), 100);
     }
 
     #[test]
-    fn left_returns_leftmost_possible_value() {
+    fn rect_left_returns_leftmost_possible_value() {
         assert_eq!(Rect::positioned(5, 10, 0, 0).left(), 0);
     }
 
     #[test]
-    fn left_returns_leftmost_possible_value_including_offset() {
+    fn rect_left_returns_leftmost_possible_value_including_offset() {
         assert_eq!(Rect::positioned(5, 10, 10, 0).left(), 10);
     }
 
     #[test]
-    fn right_returns_rightmost_possible_value() {
+    fn rect_right_returns_rightmost_possible_value() {
         assert_eq!(Rect::positioned(5, 10, 0, 0).right(), 4);
     }
 
     #[test]
-    fn right_returns_rightmost_possible_value_including_offset() {
+    fn rect_right_returns_rightmost_possible_value_including_offset() {
         assert_eq!(Rect::positioned(5, 10, 20, 25).right(), 24);
     }
 
     #[test]
-    fn top_returns_topmost_possible_value() {
+    fn rect_top_returns_topmost_possible_value() {
         assert_eq!(Rect::positioned(5, 10, 0, 0).top(), 0);
     }
 
     #[test]
-    fn top_returns_topmost_possible_value_including_offset() {
+    fn rect_top_returns_topmost_possible_value_including_offset() {
         assert_eq!(Rect::positioned(5, 10, 0, 12).top(), 12);
     }
 
     #[test]
-    fn bottom_returns_bottommost_possible_value() {
+    fn rect_bottom_returns_bottommost_possible_value() {
         assert_eq!(Rect::positioned(5, 10, 0, 0).bottom(), 9);
     }
 
     #[test]
-    fn bottom_returns_bottommost_possible_value_including_offset() {
+    fn rect_bottom_returns_bottommost_possible_value_including_offset() {
         assert_eq!(Rect::positioned(5, 10, 20, 25).bottom(), 34);
     }
 
     #[test]
-    fn contains_returns_true_if_position_contained() {
+    fn rect_contains_returns_true_if_position_contained() {
         let r = Rect::new(10, 10);
         assert!(r.contains(Position::new(9, 9)));
     }
 
     #[test]
-    fn contains_returns_false_if_position_not_contained() {
+    fn rect_contains_returns_false_if_position_not_contained() {
+        let r = Rect::new(10, 10);
+        assert!(!r.contains(Position::new(10, 9)));
+        assert!(!r.contains(Position::new(9, 10)));
+
         let r = Rect::positioned(10, 10, 10, 10);
         assert!(!r.contains(Position::new(20, 20)));
     }
