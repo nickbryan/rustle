@@ -383,13 +383,13 @@ impl Component for Document {
 
 impl View for Document {
     fn render_to(&self, frame: &mut crate::render::Frame) {
-        for viewport in &self.viewports {
+        for (viewport_id, viewport) in self.viewports.iter().enumerate() {
             for row_in_view in 0..viewport.height {
                 frame.write(
                     Position::new(viewport.left(), viewport.top().saturating_add(row_in_view)),
                     format!(
                         "{:1$} ",
-                        (usize::from(row_in_view) + self.cursor_offsets[self.viewport_id].row)
+                        (usize::from(row_in_view) + self.cursor_offsets[viewport_id].row)
                             .saturating_add(1),
                         usize::from(self.margin_width().saturating_sub(1))
                     )
@@ -399,9 +399,9 @@ impl View for Document {
                 );
 
                 if let Some(row) =
-                    self.line(usize::from(row_in_view) + self.cursor_offsets[self.viewport_id].row)
+                    self.line(usize::from(row_in_view) + self.cursor_offsets[viewport_id].row)
                 {
-                    let start = self.cursor_offsets[self.viewport_id].col;
+                    let start = self.cursor_offsets[viewport_id].col;
                     if start <= row.len_chars() {
                         let end = start + usize::from(viewport.width);
                         let row = row.slice(start..end.min(row.len_chars())).to_string();
