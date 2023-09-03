@@ -143,7 +143,7 @@ impl Component for Compositor {
             );
             self.documents[self.active_document_idx]
                 .1
-                .add_viewport(Rect::positioned(
+                .add_view(Rect::positioned(
                     bufferspace.width / 2,
                     bufferspace.height,
                     bufferspace.width / 2,
@@ -151,13 +151,13 @@ impl Component for Compositor {
                 ));
             self.documents[self.active_document_idx]
                 .1
-                .set_active_viewport(1);
+                .set_active_view(1);
         }
 
         if let Message::PreviousWindow = msg.clone() {
             self.documents[self.active_document_idx]
                 .1
-                .set_active_viewport(0);
+                .set_active_view(0);
         }
 
         if let Message::Open(path) = msg.clone() {
