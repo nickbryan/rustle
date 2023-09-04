@@ -1,6 +1,6 @@
 use crate::communication::{Command, Message};
 use crate::component::document::Document;
-use crate::component::{StatusBar, TextInput, Welcome};
+use crate::component::Welcome;
 use crate::editor::Component;
 use crate::mode::Mode;
 use crate::render::{Frame, View};
@@ -14,63 +14,27 @@ use taffy::prelude::*;
 /// `Compositor` is the default root component for the `Editor`.
 pub struct Compositor {
     active_document_idx: usize,
-    documents: Vec<(String, Document)>,
+    documents: Vec<Document>,
     document_name_indexes: HashMap<String, usize>,
-    command_prompt: TextInput,
     mode: Mode,
     taffy: Taffy,
-    body_node: Node,
-    status_node: Node,
+    root_node: Node,
 }
 
 impl Compositor {
     pub fn new(size: Rect, mode: Mode) -> Self {
         let mut taffy = Taffy::new();
 
-        let body_node = taffy
-            .new_leaf(Style {
-                size: Size {
-                    width: Dimension::Auto,
-                    height: Dimension::Auto,
-                },
-                flex_grow: 1.0,
-                ..Default::default()
-            })
-            .unwrap();
-
-        let status_node = taffy
-            .new_leaf(Style {
-                size: Size {
-                    width: Dimension::Auto,
-                    height: Dimension::Points(1.0),
-                },
-                ..Default::default()
-            })
-            .unwrap();
-
-        let command_node = taffy
-            .new_leaf(Style {
-                size: Size {
-                    width: Dimension::Auto,
-                    height: Dimension::Points(1.0),
-                },
-                ..Default::default()
-            })
-            .unwrap();
-
         let root_node = taffy
-            .new_with_children(
-                Style {
-                    flex_direction: FlexDirection::Column,
-                    justify_content: Some(JustifyContent::FlexEnd),
-                    size: Size {
-                        width: Dimension::Points(f32::from(size.width)),
-                        height: Dimension::Points(f32::from(size.height)),
-                    },
-                    ..Default::default()
+            .new_leaf(Style {
+                flex_direction: FlexDirection::Column,
+                justify_content: Some(JustifyContent::FlexEnd),
+                size: Size {
+                    width: Dimension::Points(f32::from(size.width)),
+                    height: Dimension::Points(f32::from(size.height)),
                 },
-                &[body_node, status_node, command_node],
-            )
+                ..Default::default()
+            })
             .unwrap();
 
         taffy
@@ -83,30 +47,18 @@ impl Compositor {
             )
             .unwrap();
 
-        let mut command_prompt = TextInput::new(
-            ":",
-            " Press : to enter a command...",
-            taffy.layout(command_node).unwrap().location.into(),
-        );
-
-        if let Mode::Execute = mode {
-            command_prompt.focus();
-        }
-
         Self {
             active_document_idx: 0,
             documents: Vec::default(),
             document_name_indexes: HashMap::new(),
-            command_prompt,
             mode,
             taffy,
-            body_node,
-            status_node,
+            root_node,
         }
     }
 
     fn buffer_space(&self) -> Rect {
-        self.taffy.layout(self.body_node).unwrap().into()
+        self.taffy.layout(self.root_node).unwrap().into()
     }
 }
 
@@ -116,62 +68,52 @@ impl Component for Compositor {
             if let Mode::Insert = mode {
                 if self.documents.is_empty() {
                     self.documents
-                        .push((String::from("scratch"), Document::new(self.buffer_space())));
+                        .push(Document::empty(self.mode.clone(), self.buffer_space()));
                 }
-            }
-
-            if let Mode::Execute = mode {
-                self.command_prompt.focus();
-            } else {
-                self.command_prompt.unfocus();
             }
 
             self.mode = mode;
         }
 
         if let Message::VisualSplit = msg.clone() {
-            let bufferspace = self.buffer_space();
+            let buffer_space = self.buffer_space();
 
-            self.documents[self.active_document_idx].1.set_viewport(
+            self.documents[self.active_document_idx].set_viewport(
                 0,
                 Rect::positioned(
-                    bufferspace.width / 2,
-                    bufferspace.height,
-                    bufferspace.left(),
-                    bufferspace.top(),
+                    buffer_space.width / 2,
+                    buffer_space.height,
+                    buffer_space.left(),
+                    buffer_space.top(),
                 ),
             );
-            self.documents[self.active_document_idx]
-                .1
-                .add_view(Rect::positioned(
-                    bufferspace.width / 2,
-                    bufferspace.height,
-                    bufferspace.width / 2,
-                    bufferspace.top(),
-                ));
-            self.documents[self.active_document_idx]
-                .1
-                .set_active_view(1);
+            self.documents[self.active_document_idx].add_view(Rect::positioned(
+                buffer_space.width / 2,
+                buffer_space.height,
+                buffer_space.width / 2,
+                buffer_space.top(),
+            ));
+            self.documents[self.active_document_idx].set_active_view(1);
         }
 
         if let Message::PreviousWindow = msg.clone() {
-            self.documents[self.active_document_idx]
-                .1
-                .set_active_view(0);
+            self.documents[self.active_document_idx].set_active_view(0);
         }
 
         if let Message::Open(path) = msg.clone() {
             if !self.document_name_indexes.contains_key(&path) {
-                self.documents.push((
-                    path.clone(),
+                self.documents.push(
+                    //TODO: drop this
                     Document::from(
+                        path.clone().as_str(),
+                        self.mode.clone(),
                         self.buffer_space(),
                         &mut io::BufReader::new(
                             File::open(path.clone().as_str()).context("opening file")?,
                         ),
                     )
                     .context("opening document")?,
-                ));
+                );
                 self.document_name_indexes
                     .insert(path.clone(), self.documents.len() - 1);
             }
@@ -190,12 +132,8 @@ impl Component for Compositor {
                 .min(self.documents.len().saturating_sub(1));
         }
 
-        if let Mode::Execute = self.mode {
-            return self.command_prompt.update(msg);
-        }
-
         if !self.documents.is_empty() {
-            return self.documents[self.active_document_idx].1.update(msg);
+            return self.documents[self.active_document_idx].update(msg);
         }
 
         Ok(None)
@@ -210,50 +148,26 @@ impl View for Compositor {
             }
             .render_to(frame);
         } else {
-            self.documents[self.active_document_idx].1.render_to(frame);
+            self.documents.iter().for_each(|doc| doc.render_to(frame));
         }
-
-        let mut len = 0;
 
         if let Mode::Normal(_) | Mode::Insert = self.mode {
             frame.set_cursor_position(if self.documents.is_empty() {
-                self.taffy.layout(self.body_node).unwrap().location.into()
+                self.taffy.layout(self.root_node).unwrap().location.into()
             } else {
                 let body_position: Position =
-                    self.taffy.layout(self.body_node).unwrap().location.into();
+                    self.taffy.layout(self.root_node).unwrap().location.into();
                 Position::new(
                     self.documents[self.active_document_idx]
-                        .1
                         .cursor_position()
                         .col
                         .saturating_add(body_position.col),
                     self.documents[self.active_document_idx]
-                        .1
                         .cursor_position()
                         .row
                         .saturating_add(body_position.row),
                 )
             });
         }
-
-        if !self.documents.is_empty() {
-            len = self.documents[self.active_document_idx].1.len();
-        }
-
-        StatusBar {
-            area: self.taffy.layout(self.status_node).unwrap().into(),
-            mode: self.mode.to_string(),
-            line_count: len,
-            cursor_position: frame.cursor_position(), // TODO: not accounting for margin.
-            file_name: self
-                .documents
-                .get(self.active_document_idx)
-                .unwrap_or(&(String::new(), Document::default()))
-                .0
-                .clone(),
-        }
-        .render_to(frame);
-
-        self.command_prompt.render_to(frame);
     }
 }

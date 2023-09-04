@@ -1,6 +1,8 @@
 use crate::communication::{Command, Message};
+use crate::component::status_bar::StatusBar;
 use crate::editor::Component;
 use crate::graphemes::RopeExt;
+use crate::mode::Mode;
 use crate::render::View;
 use crate::ui::{Color, Position, Rect};
 use anyhow::{Context, Result};
@@ -34,6 +36,7 @@ impl Cursor {
 
 #[derive(Debug, Default)]
 struct ViewContext {
+    id: usize,
     cursor_offset: Cursor,
     desired_visual_col: usize,
     selection: Selection,
@@ -43,25 +46,19 @@ struct ViewContext {
 #[derive(Debug)]
 pub(crate) struct Document {
     active_view_id: usize,
+    mode: Mode,
+    name: String,
     text: Rope,
     views: Vec<ViewContext>,
 }
 
-impl Default for Document {
-    fn default() -> Self {
-        Self {
-            active_view_id: 0,
-            text: Rope::default(),
-            views: vec![ViewContext::default()],
-        }
-    }
-}
-
 impl Document {
     // TODO: test
-    pub(crate) fn new(viewport: Rect) -> Self {
+    pub(crate) fn empty(mode: Mode, viewport: Rect) -> Self {
         Self {
             active_view_id: 0,
+            mode,
+            name: "[scratch]".to_string(),
             text: Rope::default(),
             views: vec![ViewContext {
                 viewport,
@@ -70,10 +67,12 @@ impl Document {
         }
     }
 
-    // TODO: test REsult
-    pub(crate) fn from(viewport: Rect, reader: impl Read) -> Result<Self> {
+    // TODO: test
+    pub(crate) fn from(name: &str, mode: Mode, viewport: Rect, reader: impl Read) -> Result<Self> {
         Ok(Self {
             active_view_id: 0,
+            mode,
+            name: name.to_string(),
             text: Rope::from_reader(reader).context("creating rope from reader")?,
             views: vec![ViewContext {
                 viewport,
@@ -84,6 +83,7 @@ impl Document {
 
     pub(crate) fn add_view(&mut self, viewport: Rect) {
         self.views.push(ViewContext {
+            id: self.views.len(),
             viewport,
             ..Default::default()
         });
@@ -381,12 +381,13 @@ impl Component for Document {
 impl View for Document {
     fn render_to(&self, frame: &mut crate::render::Frame) {
         for ViewContext {
+            id: view_id,
             viewport,
             cursor_offset,
             ..
         } in &self.views
         {
-            for row_in_view in 0..viewport.height {
+            for row_in_view in 0..viewport.height.saturating_sub(1) {
                 frame.write(
                     Position::new(viewport.left(), viewport.top().saturating_add(row_in_view)),
                     format!(
@@ -423,6 +424,19 @@ impl View for Document {
                     );
                 }
             }
+
+            StatusBar {
+                area: Rect::positioned(viewport.width, 1, viewport.left(), viewport.bottom()),
+                mode: if *view_id == self.active_view_id {
+                    self.mode.to_string()
+                } else {
+                    String::new()
+                },
+                line_count: self.len(),
+                cursor_position: frame.cursor_position(), // TODO: not accounting for margin.
+                file_name: self.name.clone(),
+            }
+            .render_to(frame);
         }
     }
 }
@@ -444,10 +458,11 @@ mod tests {
 
     #[test]
     fn document_from_reader_handles_error_with_context() {
-        let error = Document::from(Rect::default(), FileNotFoundReader).unwrap_err();
+        let error =
+            Document::from("", Mode::default(), Rect::default(), FileNotFoundReader).unwrap_err();
 
         assert_eq!(
-            Document::from(Rect::default(), FileNotFoundReader)
+            Document::from("", Mode::default(), Rect::default(), FileNotFoundReader)
                 .unwrap_err()
                 .to_string(),
             "creating rope from reader"
@@ -466,21 +481,21 @@ mod tests {
 
     #[test]
     fn document_len() {
-        assert_eq!(Document::default().len(), 1);
+        assert_eq!(Document::empty(Mode::default(), Rect::default()).len(), 1);
         assert_eq!(
-            Document::from(Rect::default(), "1".as_bytes())
+            Document::from("", Mode::default(), Rect::default(), "1".as_bytes())
                 .unwrap()
                 .len(),
             1
         );
         assert_eq!(
-            Document::from(Rect::default(), "1\n".as_bytes())
+            Document::from("", Mode::default(), Rect::default(), "1\n".as_bytes())
                 .unwrap()
                 .len(),
             2
         );
         assert_eq!(
-            Document::from(Rect::default(), "1\n2\n3\n".as_bytes())
+            Document::from("", Mode::default(), Rect::default(), "1\n2\n3\n".as_bytes())
                 .unwrap()
                 .len(),
             4
@@ -489,7 +504,7 @@ mod tests {
 
     #[test]
     fn document_move_cursor_horizontally_does_nothing_for_empty_document() {
-        let mut document = Document::default();
+        let mut document = Document::empty(Mode::default(), Rect::default());
         document.move_cursor_horizontally(Direction::Forward(0));
         assert_eq!(document.active_cursor(), Cursor::new(0, 0));
         document.move_cursor_horizontally(Direction::Forward(1));
@@ -507,6 +522,8 @@ mod tests {
     #[test]
     fn document_move_cursor_horizontally_through_document() {
         let mut document = Document::from(
+            "",
+            Mode::default(),
             Rect::default(),
             "1234\nabcd\n🇬🇧🇯🇲🇧🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿\n🦀🌳🦀🌳\n".as_bytes(),
         )
@@ -551,7 +568,7 @@ mod tests {
 
     #[test]
     fn document_move_cursor_vertically_does_nothing_for_empty_document() {
-        let mut document = Document::default();
+        let mut document = Document::empty(Mode::default(), Rect::default());
         document.move_cursor_vertically(Direction::Forward(0));
         assert_eq!(document.active_cursor(), Cursor::new(0, 0));
         document.move_cursor_vertically(Direction::Forward(1));
@@ -569,6 +586,8 @@ mod tests {
     #[test]
     fn document_move_cursor_vertically_through_first_column() {
         let mut document = Document::from(
+            "",
+            Mode::default(),
             Rect::default(),
             "\
                         1234\n\
@@ -597,6 +616,8 @@ mod tests {
     #[test]
     fn document_move_cursor_vertically_through_second_column() {
         let mut document = Document::from(
+            "",
+            Mode::default(),
             Rect::default(),
             "\
                         1234\n\
@@ -645,6 +666,8 @@ mod tests {
     #[test]
     fn document_move_cursor_vertically_aligns_to_previous_grapheme_boundary() {
         let mut document = Document::from(
+            "",
+            Mode::default(),
             Rect::default(),
             "\
                         abcdefgh\n\
@@ -675,6 +698,8 @@ mod tests {
     fn document_move_cursor_vertically_aligns_to_next_grapheme_boundary() {
         // TODO: these tests, make them cleaner
         let mut document = Document::from(
+            "",
+            Mode::default(),
             Rect::default(),
             // 🏴󠁧󠁢󠁥󠁮󠁧󠁿 has len of 7 so we align to the right grapheme boundary.
             "\
@@ -700,6 +725,8 @@ mod tests {
     fn document_move_cursor_vertically_handles_different_line_lengths() {
         // TODO: these tests, make them cleaner
         let mut document = Document::from(
+            "",
+            Mode::default(),
             Rect::default(),
             // 🏴󠁧󠁢󠁥󠁮󠁧󠁿 has len of 7 so we align to the right grapheme boundary.
             "\
@@ -750,6 +777,8 @@ mod tests {
     #[test]
     fn document_delete_forward() {
         let mut document = Document::from(
+            "",
+            Mode::default(),
             Rect::default(),
             "\
                         abc\n\
@@ -790,6 +819,8 @@ mod tests {
     #[test]
     fn document_delete_backward() {
         let mut document = Document::from(
+            "",
+            Mode::default(),
             Rect::default(),
             "\
                         abc\n\
@@ -820,7 +851,7 @@ mod tests {
 
     #[test]
     fn document_insert() {
-        let mut document = Document::default();
+        let mut document = Document::empty(Mode::default(), Rect::default());
         assert_eq!(document.len(), 1);
         assert_eq!(document.active_cursor(), Cursor::new(0, 0));
 
@@ -846,7 +877,8 @@ mod tests {
         assert_eq!(document.active_cursor(), Cursor::new(2, 1));
         assert_eq!(document.line(1), Some(RopeSlice::from("🇬🇧")));
 
-        let mut document = Document::from(Rect::default(), "ello".as_bytes()).unwrap();
+        let mut document =
+            Document::from("", Mode::default(), Rect::default(), "ello".as_bytes()).unwrap();
         assert_eq!(document.len(), 1);
         assert_eq!(document.active_cursor(), Cursor::new(0, 0));
 
@@ -858,7 +890,13 @@ mod tests {
 
     #[test]
     fn document_move_cursor_to_line_start() {
-        let mut document = Document::from(Rect::default(), "hello\nworld\n".as_bytes()).unwrap();
+        let mut document = Document::from(
+            "",
+            Mode::default(),
+            Rect::default(),
+            "hello\nworld\n".as_bytes(),
+        )
+        .unwrap();
         document.move_cursor_horizontally(Direction::Forward(5));
         assert_eq!(document.active_cursor(), Cursor::new(5, 0));
         document.move_cursor_to_line_start();
@@ -869,7 +907,13 @@ mod tests {
 
     #[test]
     fn document_move_cursor_to_line_end() {
-        let mut document = Document::from(Rect::default(), "hello\n\nworld".as_bytes()).unwrap();
+        let mut document = Document::from(
+            "",
+            Mode::default(),
+            Rect::default(),
+            "hello\n\nworld".as_bytes(),
+        )
+        .unwrap();
         assert_eq!(document.active_cursor(), Cursor::new(0, 0));
         document.move_cursor_to_line_end();
         assert_eq!(document.active_cursor(), Cursor::new(5, 0));
@@ -879,7 +923,13 @@ mod tests {
 
     #[test]
     fn document_line() {
-        let document = Document::from(Rect::default(), "hello\n\nworld".as_bytes()).unwrap();
+        let document = Document::from(
+            "",
+            Mode::default(),
+            Rect::default(),
+            "hello\n\nworld".as_bytes(),
+        )
+        .unwrap();
         assert_eq!(document.line(0).unwrap(), RopeSlice::from("hello"));
         assert_eq!(document.line(1).unwrap(), RopeSlice::from(""));
         assert_eq!(document.line(2).unwrap(), RopeSlice::from("world"));

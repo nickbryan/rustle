@@ -3,8 +3,9 @@ mod document;
 mod status_bar;
 mod text_input;
 mod welcome;
+mod window;
 
-pub use compositor::Compositor;
-use status_bar::StatusBar;
+use compositor::Compositor;
 use text_input::TextInput;
 use welcome::Welcome;
+pub use window::Window;

@@ -29,7 +29,7 @@ impl View for StatusBar {
         status.truncate(usize::from(self.area.width));
 
         frame.write(
-            Position::new(0, self.area.top()),
+            Position::new(self.area.left(), self.area.top()),
             &status,
             Color::Rgb(128, 119, 106),
             Color::Rgb(59, 56, 54),

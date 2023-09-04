@@ -329,3 +329,27 @@ impl<'a, G: Canvas> Drop for Viewport<'a, G> {
         self.canvas.flush().unwrap();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cell() {
+        let mut cell = Cell::new(10, 10, "a", Color::Red, Color::White);
+
+        assert_eq!(cell.position().col, 10);
+        assert_eq!(cell.position().row, 10);
+        assert_eq!(cell.symbol(), "a");
+        assert_eq!(cell.foreground(), Color::Red);
+        assert_eq!(cell.background(), Color::White);
+
+        cell.reset();
+
+        assert_eq!(cell.position().col, 10);
+        assert_eq!(cell.position().row, 10);
+        assert_eq!(cell.symbol(), " ");
+        assert_eq!(cell.foreground(), Color::Red);
+        assert_eq!(cell.background(), Color::White);
+    }
+}

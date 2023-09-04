@@ -131,7 +131,7 @@ impl From<&Layout> for Rect {
 
 #[cfg(test)]
 mod tests {
-    use super::{Position, Rect};
+    use super::*;
     use taffy::geometry::Point;
     use taffy::layout::Layout;
     use taffy::prelude::Size;

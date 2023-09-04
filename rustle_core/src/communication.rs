@@ -5,6 +5,8 @@ use std::fmt;
 /// understand.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Message {
+    Batch(Vec<Message>),
+
     AbortCommandLineInput,
     EndCommandLineInput,
     ParseCommandLineInput(String),
@@ -56,4 +58,8 @@ impl fmt::Debug for Command {
 /// Reduces some boiler plate by not having to `Box` every closure.
 pub fn wrap(msg: Message) -> Command {
     Box::new(|| msg)
+}
+
+pub fn batch(commands: Vec<Option<Command>>) -> Command {
+    Box::new(|| Message::Batch(commands.into_iter().flatten().map(|c| c()).collect()))
 }

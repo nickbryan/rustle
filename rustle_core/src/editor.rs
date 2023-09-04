@@ -1,5 +1,5 @@
 use crate::communication::{Command, Message};
-use crate::component::Compositor;
+use crate::component::Window;
 use crate::mode::Normal;
 use crate::render::{View, Viewport};
 use crate::{mode, Canvas, Event, EventStream, Mode};
@@ -7,15 +7,12 @@ use anyhow::{Error, Result};
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 
-// TODO: figure out grapheme handling, it is based on chars, 2 chars = 1 flag. Need to figure out how
-// the selection, range and movement will work with grapheme boundaries. Is this the documents job,
-// should it control the cursor?
+// TODO: write tests for existing code
+// TODO: review and refactor all code for correctness
 // TODO: refactor the window component to use layouts. Lift the work of window into editor and have
 // editor use the window API to open buffers etc.
 // TODO: refactor storage to be abstract so that it works on web and terminal.
 // TODO: convert line numbers into a widget
-// TODO: review and refactor all code for correctness
-// TODO: write tests for existing code
 // TODO: implement selections
 
 /// `Component` is the foundation for all interactivity within the `Editor`. You can view it as the
@@ -37,7 +34,7 @@ where
     viewport: Viewport<'a, C>,
 }
 
-impl<'a, C> Editor<'a, Compositor, C>
+impl<'a, C> Editor<'a, Window, C>
 where
     C: Canvas,
 {
@@ -54,7 +51,7 @@ where
 
         Ok(Self {
             mode: mode.clone(),
-            root_component: Compositor::new(viewport.area(), mode),
+            root_component: Window::new(viewport.area(), mode),
             should_quit: false,
             viewport,
         })
@@ -77,10 +74,8 @@ where
         use anyhow::Context;
 
         let (err_tx, mut err_rx) = mpsc::channel::<Error>(1);
-        let (cmd_tx, mut cmd_rx) = mpsc::channel::<Command>(1);
-        // TODO: this had to be increased because of the two calls in ParseCommandLineInput.
-        // Why does it need a buffer size? Should it not be async? What is causing it to block?
-        let (msg_tx, mut msg_rx) = mpsc::channel(2);
+        let (cmd_tx, mut cmd_rx) = mpsc::unbounded_channel::<Command>();
+        let (msg_tx, mut msg_rx) = mpsc::unbounded_channel();
 
         // Render the initial view so that we don't have to wait for an input event to
         // see something on the screen.
@@ -100,7 +95,6 @@ where
                             } {
                                 msg_tx
                                     .send(msg)
-                                    .await
                                     .expect("unable to send msg on closed msg_tx channel");
                             }
                         }
@@ -119,42 +113,45 @@ where
                     tokio::spawn(async move {
                         msg_tx
                             .send(cmd())
-                            .await
                             .expect("unable to send cmd result on closed msg_tx channel");
                     });
                 }
                 Some(msg) = msg_rx.recv() => {
-                    if let Message::Quit = msg {
-                        self.should_quit = true;
-                    }
+                    match msg {
+                        Message::Quit => self.should_quit = true,
+                        Message::EnterMode(ref mode) => self.mode = mode.clone(),
+                        Message::ParseCommandLineInput(input) => {
+                            if let Mode::Execute = self.mode {
+                                let msg = mode::Execute::parse(&input);
 
-                    if let Message::EnterMode(mode) = msg.clone() {
-                        self.mode = mode;
-                    }
-
-                    if let Message::ParseCommandLineInput(input) = msg {
-                        if let Mode::Execute = self.mode {
-                            let msg = mode::Execute::parse(&input);
-
-                            if let Some(msg) = msg {
-                                 msg_tx
-                                .send(msg)
-                                .await
-                                .expect("unable to send msg on closed msg_tx channel");
+                                if let Some(msg) = msg {
+                                     msg_tx
+                                    .send(msg)
+                                    .expect("unable to send msg on closed msg_tx channel");
+                                }
                             }
-                        }
 
-                        msg_tx
+                            msg_tx
                                 .send(Message::EnterMode(Mode::Normal(Normal::default())))
-                                .await
                                 .expect("unable to send msg on closed msg_tx channel");
 
-                        continue;
-                    }
+                            continue;
+                        }
+                        Message::Batch(messages) => {
+                            for message in messages {
+                                msg_tx
+                                    .send(message)
+                                    .expect("unable to send msg on closed msg_tx channel");
+                            }
+
+                            continue;
+                        }
+                        _ => (),
+                    };
 
                     match self.root_component.update(msg) {
                         Ok(Some(cmd)) => {
-                            cmd_tx.send(cmd).await.expect("unable to send on closed cmd_tx channel");
+                            cmd_tx.send(cmd).expect("unable to send on closed cmd_tx channel");
                         }
                         Err(e) => {
                             err_tx.send(e.context("error during root_component update")).await.expect("unable to send on closed err_tx channel");
