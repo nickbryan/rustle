@@ -1,7 +1,6 @@
-use crate::communication::{Command, Message};
 use crate::component::document::Document;
 use crate::component::Welcome;
-use crate::editor::Component;
+use crate::editor::{Command, Component};
 use crate::mode::Mode;
 use crate::render::{Frame, View};
 use crate::ui::{Position, Rect};
@@ -63,8 +62,8 @@ impl Compositor {
 }
 
 impl Component for Compositor {
-    fn update(&mut self, msg: Message) -> Result<Option<Command>> {
-        if let Message::EnterMode(mode) = msg.clone() {
+    fn update(&mut self, cmd: Command) -> Result<Option<Command>> {
+        if let Command::EnterMode(mode) = cmd.clone() {
             if let Mode::Insert = mode {
                 if self.documents.is_empty() {
                     self.documents
@@ -75,7 +74,7 @@ impl Component for Compositor {
             self.mode = mode;
         }
 
-        if let Message::VisualSplit = msg.clone() {
+        if let Command::VisualSplit = cmd.clone() {
             let buffer_space = self.buffer_space();
 
             self.documents[self.active_document_idx].set_viewport(
@@ -96,11 +95,11 @@ impl Component for Compositor {
             self.documents[self.active_document_idx].set_active_view(1);
         }
 
-        if let Message::PreviousWindow = msg.clone() {
+        if let Command::PreviousWindow = cmd.clone() {
             self.documents[self.active_document_idx].set_active_view(0);
         }
 
-        if let Message::Open(path) = msg.clone() {
+        if let Command::Open(path) = cmd.clone() {
             if !self.document_name_indexes.contains_key(&path) {
                 self.documents.push(
                     //TODO: drop this
@@ -121,11 +120,11 @@ impl Component for Compositor {
             self.active_document_idx = *self.document_name_indexes.get(&path).unwrap();
         }
 
-        if let Message::BufferPrevious = msg.clone() {
+        if let Command::BufferPrevious = cmd.clone() {
             self.active_document_idx = self.active_document_idx.saturating_sub(1);
         }
 
-        if let Message::BufferNext = msg.clone() {
+        if let Command::BufferNext = cmd.clone() {
             self.active_document_idx = self
                 .active_document_idx
                 .saturating_add(1)
@@ -133,7 +132,7 @@ impl Component for Compositor {
         }
 
         if !self.documents.is_empty() {
-            return self.documents[self.active_document_idx].update(msg);
+            return self.documents[self.active_document_idx].update(cmd);
         }
 
         Ok(None)

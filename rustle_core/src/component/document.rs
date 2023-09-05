@@ -1,6 +1,5 @@
-use crate::communication::{Command, Message};
 use crate::component::status_bar::StatusBar;
-use crate::editor::Component;
+use crate::editor::{Command, Component};
 use crate::graphemes::RopeExt;
 use crate::mode::Mode;
 use crate::render::View;
@@ -337,38 +336,38 @@ impl Document {
 }
 
 impl Component for Document {
-    fn update(&mut self, msg: Message) -> Result<Option<Command>> {
-        match msg {
-            Message::InsertChar(ch) => self.insert(ch),
-            Message::InsertLineBreak => self.insert('\n'),
-            Message::DeleteCharForward => self.delete(Direction::Forward(1)),
-            Message::DeleteCharBackward => {
+    fn update(&mut self, cmd: Command) -> Result<Option<Command>> {
+        match cmd {
+            Command::InsertChar(ch) => self.insert(ch),
+            Command::InsertLineBreak => self.insert('\n'),
+            Command::DeleteCharForward => self.delete(Direction::Forward(1)),
+            Command::DeleteCharBackward => {
                 self.delete(Direction::Backward(1));
             }
-            Message::MoveCursorUp(n) => {
+            Command::MoveCursorUp(n) => {
                 self.move_cursor_vertically(Direction::Backward(n));
             }
-            Message::MoveCursorDown(n) => {
+            Command::MoveCursorDown(n) => {
                 self.move_cursor_vertically(Direction::Forward(n));
             }
-            Message::MoveCursorLeft(n) => {
+            Command::MoveCursorLeft(n) => {
                 self.move_cursor_horizontally(Direction::Backward(n));
             }
-            Message::MoveCursorRight(n) => {
+            Command::MoveCursorRight(n) => {
                 self.move_cursor_horizontally(Direction::Forward(n));
             }
-            Message::MoveCursorPageUp => {
+            Command::MoveCursorPageUp => {
                 self.move_cursor_vertically(Direction::Backward(
                     self.active_viewport().height.into(),
                 ));
             }
-            Message::MoveCursorPageDown => {
+            Command::MoveCursorPageDown => {
                 self.move_cursor_vertically(Direction::Forward(
                     self.active_viewport().height.into(),
                 ));
             }
-            Message::MoveCursorLineStart => self.move_cursor_to_line_start(),
-            Message::MoveCursorLineEnd => self.move_cursor_to_line_end(),
+            Command::MoveCursorLineStart => self.move_cursor_to_line_start(),
+            Command::MoveCursorLineEnd => self.move_cursor_to_line_end(),
             _ => {}
         };
 

@@ -1,6 +1,4 @@
 #![warn(clippy::all, clippy::pedantic)]
-
-mod communication;
 mod component;
 mod editor;
 mod input;

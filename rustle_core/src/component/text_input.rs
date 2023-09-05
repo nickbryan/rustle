@@ -1,4 +1,4 @@
-use crate::communication::{self, Command, Message};
+use crate::editor::Command;
 use crate::editor::Component;
 use crate::mode::{Mode, Normal};
 use crate::render::{Frame, View};
@@ -44,78 +44,70 @@ impl TextInput {
 }
 
 impl Component for TextInput {
-    fn update(&mut self, msg: Message) -> Result<Option<Command>> {
-        Ok(match msg {
-            Message::InsertChar(ch) => {
+    fn update(&mut self, cmd: Command) -> Result<Option<Command>> {
+        Ok(match cmd {
+            Command::InsertChar(ch) => {
                 self.value.insert(self.cursor_position, ch);
                 self.cursor_position = self.cursor_position.saturating_add(1);
 
                 None
             }
-            Message::EndCommandLineInput => {
-                let cmd = Some(communication::wrap(Message::ParseCommandLineInput(
-                    self.value.clone(),
-                )));
+            Command::EndCommandLineInput => {
+                let cmd = Some(Command::ParseCommandLineInput(self.value.clone()));
 
                 self.reset();
 
                 cmd
             }
-            Message::AbortCommandLineInput => {
+            Command::AbortCommandLineInput => {
                 self.reset();
 
-                Some(communication::wrap(Message::EnterMode(Mode::Normal(
-                    Normal::default(),
-                ))))
+                Some(Command::EnterMode(Mode::Normal(Normal::default())))
             }
-            Message::MoveCursorLeft(n) => {
+            Command::MoveCursorLeft(n) => {
                 if self.cursor_position > 1 {
                     self.cursor_position = self.cursor_position.saturating_sub(n);
                 }
 
                 None
             }
-            Message::MoveCursorRight(n) => {
+            Command::MoveCursorRight(n) => {
                 if self.cursor_position != self.value.len() {
                     self.cursor_position = self.cursor_position.saturating_add(n);
                 }
 
                 None
             }
-            Message::MoveCursorLineStart => {
+            Command::MoveCursorLineStart => {
                 self.cursor_position = 1;
 
                 None
             }
-            Message::MoveCursorLineEnd => {
+            Command::MoveCursorLineEnd => {
                 self.cursor_position = self.value.len();
 
                 None
             }
-            Message::DeleteCharForward => {
+            Command::DeleteCharForward => {
                 self.value.remove(self.cursor_position);
 
                 // TODO: revmove duplication here.
                 if self.value.len() <= 1 {
                     self.reset();
 
-                    return Ok(Some(communication::wrap(Message::EnterMode(Mode::Normal(
-                        Normal::default(),
-                    )))));
+                    return Ok(Some(Command::EnterMode(Mode::Normal(Normal::default()))));
                 }
 
                 None
             }
-            Message::DeleteCharBackward => {
+            Command::DeleteCharBackward => {
                 self.cursor_position = self.cursor_position.saturating_sub(1);
                 self.value.remove(self.cursor_position);
 
                 if self.value.len() <= 1 {
                     self.reset();
 
-                    return Ok(Some(communication::wrap(Message::EnterMode(Mode::Normal(
-                        Normal::default(),
-                    )))));
+                    return Ok(Some(Command::EnterMode(Mode::Normal(Normal::default()))));
                 }
 
                 None

@@ -1,4 +1,4 @@
-use crate::communication::Message;
+use crate::editor::Command;
 use crate::mode::{Mode, Normal};
 use crate::Key;
 
@@ -6,21 +6,21 @@ use crate::Key;
 pub struct Insert;
 
 impl Insert {
-    pub fn handle(key: Key) -> Option<Message> {
+    pub fn handle(key: Key) -> Option<Command> {
         match key {
-            Key::Up => Some(Message::MoveCursorUp(1)),
-            Key::Down => Some(Message::MoveCursorDown(1)),
-            Key::Left => Some(Message::MoveCursorLeft(1)),
-            Key::Right => Some(Message::MoveCursorRight(1)),
-            Key::Home => Some(Message::MoveCursorLineStart),
-            Key::End => Some(Message::MoveCursorLineEnd),
-            Key::PageUp => Some(Message::MoveCursorPageUp),
-            Key::PageDown => Some(Message::MoveCursorPageDown),
-            Key::Delete => Some(Message::DeleteCharForward),
-            Key::Backspace => Some(Message::DeleteCharBackward),
-            Key::Enter => Some(Message::InsertLineBreak),
-            Key::Char(ch) => Some(Message::InsertChar(ch)),
-            Key::Esc => Some(Message::EnterMode(Mode::Normal(Normal::default()))),
+            Key::Up => Some(Command::MoveCursorUp(1)),
+            Key::Down => Some(Command::MoveCursorDown(1)),
+            Key::Left => Some(Command::MoveCursorLeft(1)),
+            Key::Right => Some(Command::MoveCursorRight(1)),
+            Key::Home => Some(Command::MoveCursorLineStart),
+            Key::End => Some(Command::MoveCursorLineEnd),
+            Key::PageUp => Some(Command::MoveCursorPageUp),
+            Key::PageDown => Some(Command::MoveCursorPageDown),
+            Key::Delete => Some(Command::DeleteCharForward),
+            Key::Backspace => Some(Command::DeleteCharBackward),
+            Key::Enter => Some(Command::InsertLineBreak),
+            Key::Char(ch) => Some(Command::InsertChar(ch)),
+            Key::Esc => Some(Command::EnterMode(Mode::Normal(Normal::default()))),
             _ => None,
         }
     }

@@ -1,7 +1,5 @@
-use crate::communication;
-use crate::communication::{Command, Message};
 use crate::component::{Compositor, TextInput};
-use crate::editor::Component;
+use crate::editor::{Command, Component};
 use crate::mode::Mode;
 use crate::render::{Frame, View};
 use crate::ui::Rect;
@@ -84,10 +82,10 @@ impl Window {
 }
 
 impl Component for Window {
-    fn update(&mut self, msg: Message) -> Result<Option<Command>> {
+    fn update(&mut self, msg: Command) -> Result<Option<Command>> {
         let mut commands = vec![];
 
-        if let Message::EnterMode(ref mode) = msg {
+        if let Command::EnterMode(ref mode) = msg {
             if let Mode::Execute = mode {
                 self.command_prompt.focus();
             } else {
@@ -107,7 +105,12 @@ impl Component for Window {
 
         commands.push(self.compositor.update(msg).context("updating compositor")?);
 
-        Ok(Some(communication::batch(commands)))
+        Ok(Some(Command::BatchExecute(
+            commands
+                .iter()
+                .filter_map(std::clone::Clone::clone)
+                .collect(),
+        )))
     }
 }
 
