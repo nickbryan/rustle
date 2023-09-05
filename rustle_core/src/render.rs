@@ -122,17 +122,12 @@ pub struct Frame {
 impl Frame {
     /// Create a `Frame` with all `Cell`s having the symbol " ".
     pub fn empty(area: Rect) -> Self {
-        Self::filled(area, " ")
-    }
-
-    /// Create a `Frame` with all `Cell`s set to the given symbol.
-    pub fn filled(area: Rect, symbol: &str) -> Self {
         let size = area.area();
         let mut cells = Vec::with_capacity(size);
 
         for row in 0..area.height {
             for col in 0..area.width {
-                cells.push(Cell::new(col, row, symbol, Color::Reset, Color::Reset));
+                cells.push(Cell::new(col, row, " ", Color::Reset, Color::Reset));
             }
         }
 
@@ -150,6 +145,7 @@ impl Frame {
 
     /// Diff the current `Frame` with the other `Frame` to get a list of changed `Cell`s.
     fn diff<'a>(&self, other: &'a Frame) -> Vec<&'a Cell> {
+        // TODO: assert frames are equal size
         let front_buffer = &self.cells;
         let back_buffer = &other.cells;
 
@@ -335,14 +331,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_cell() {
-        let mut cell = Cell::new(10, 10, "a", Color::Red, Color::White);
+    fn cell_data_is_stored_correctly() {
+        let cell = Cell::new(10, 10, "a", Color::Red, Color::White);
 
         assert_eq!(cell.position().col, 10);
         assert_eq!(cell.position().row, 10);
         assert_eq!(cell.symbol(), "a");
         assert_eq!(cell.foreground(), Color::Red);
         assert_eq!(cell.background(), Color::White);
+    }
+
+    #[test]
+    fn cell_has_empty_symbol_when_reset() {
+        let mut cell = Cell::new(10, 10, "a", Color::Red, Color::White);
 
         cell.reset();
 
@@ -351,5 +352,13 @@ mod tests {
         assert_eq!(cell.symbol(), " ");
         assert_eq!(cell.foreground(), Color::Red);
         assert_eq!(cell.background(), Color::White);
+    }
+
+    #[test]
+    fn frame_has_no_diff_when_both_are_empty() {
+        let frame = Frame::empty(Rect::new(10, 10));
+        let other = Frame::empty(Rect::new(10, 10));
+        let empty_diff: Vec<&Cell> = vec![];
+        assert_eq!(empty_diff, frame.diff(&other),);
     }
 }
