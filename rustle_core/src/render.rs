@@ -361,4 +361,100 @@ mod tests {
         let empty_diff: Vec<&Cell> = vec![];
         assert_eq!(empty_diff, frame.diff(&other),);
     }
+
+    #[test]
+    fn frame_produces_diff_when_written_to() {
+        let mut dirty = Frame::empty(Rect::new(10, 10));
+        let clean = Frame::empty(Rect::new(10, 10));
+
+        dirty.write(Position::new(0, 0), "hello", Color::DarkGray, Color::White);
+        assert_eq!(
+            vec![
+                &Cell {
+                    position: Position { col: 0, row: 0 },
+                    symbol: "h".to_string(),
+                    foreground: Color::DarkGray,
+                    background: Color::White
+                },
+                &Cell {
+                    position: Position { col: 1, row: 0 },
+                    symbol: "e".to_string(),
+                    foreground: Color::DarkGray,
+                    background: Color::White
+                },
+                &Cell {
+                    position: Position { col: 2, row: 0 },
+                    symbol: "l".to_string(),
+                    foreground: Color::DarkGray,
+                    background: Color::White
+                },
+                &Cell {
+                    position: Position { col: 3, row: 0 },
+                    symbol: "l".to_string(),
+                    foreground: Color::DarkGray,
+                    background: Color::White
+                },
+                &Cell {
+                    position: Position { col: 4, row: 0 },
+                    symbol: "o".to_string(),
+                    foreground: Color::DarkGray,
+                    background: Color::White
+                }
+            ],
+            clean.diff(&dirty),
+        );
+    }
+
+    #[test]
+    fn frame_resets_cells_to_empty() {
+        let mut dirty = Frame::empty(Rect::new(10, 10));
+        let clean = Frame::empty(Rect::new(10, 10));
+
+        dirty.write(Position::new(0, 0), "hello", Color::DarkGray, Color::White);
+        dirty.reset();
+
+        assert_eq!(
+            vec![
+                &Cell {
+                    position: Position { col: 0, row: 0 },
+                    symbol: " ".to_string(),
+                    foreground: Color::DarkGray,
+                    background: Color::White
+                },
+                &Cell {
+                    position: Position { col: 1, row: 0 },
+                    symbol: " ".to_string(),
+                    foreground: Color::DarkGray,
+                    background: Color::White
+                },
+                &Cell {
+                    position: Position { col: 2, row: 0 },
+                    symbol: " ".to_string(),
+                    foreground: Color::DarkGray,
+                    background: Color::White
+                },
+                &Cell {
+                    position: Position { col: 3, row: 0 },
+                    symbol: " ".to_string(),
+                    foreground: Color::DarkGray,
+                    background: Color::White
+                },
+                &Cell {
+                    position: Position { col: 4, row: 0 },
+                    symbol: " ".to_string(),
+                    foreground: Color::DarkGray,
+                    background: Color::White
+                }
+            ],
+            clean.diff(&dirty),
+        );
+    }
+
+    #[test]
+    fn frame_persists_cursor_position() {
+        let mut frame = Frame::empty(Rect::default());
+        assert_eq!(Position::default(), frame.cursor_position());
+        frame.set_cursor_position(Position::new(20, 20));
+        assert_eq!(Position::new(20, 20), frame.cursor_position());
+    }
 }

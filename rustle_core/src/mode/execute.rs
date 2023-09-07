@@ -1,13 +1,6 @@
 use crate::editor::Command;
 use crate::Key;
-use nom::{
-    branch::alt,
-    character::complete::{anychar, char},
-    combinator::{all_consuming, map, value},
-    multi::many1,
-    sequence::separated_pair,
-    IResult,
-};
+use nom::IResult;
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct Execute;
@@ -34,7 +27,9 @@ impl Execute {
 }
 
 fn command_for_input(input: &str) -> Option<Command> {
-    if let Ok((_, command)) = all_consuming(alt((open, quit, save, save_as)))(input) {
+    if let Ok((_, command)) =
+        nom::combinator::all_consuming(nom::branch::alt((open, quit, save, save_as)))(input)
+    {
         return Some(command);
     }
 
@@ -42,23 +37,37 @@ fn command_for_input(input: &str) -> Option<Command> {
 }
 
 fn open(input: &str) -> IResult<&str, Command> {
-    map(
-        separated_pair(char('o'), char(' '), many1(anychar)),
+    nom::combinator::map(
+        nom::sequence::separated_pair(
+            nom::character::complete::char('o'),
+            nom::character::complete::char(' '),
+            nom::multi::many1(nom::character::complete::anychar),
+        ),
         |(_, name)| Command::Open(name.into_iter().collect::<String>()),
     )(input)
 }
 
 fn quit(input: &str) -> IResult<&str, Command> {
-    value(Command::Quit, all_consuming(char('q')))(input)
+    nom::combinator::value(
+        Command::Quit,
+        nom::combinator::all_consuming(nom::character::complete::char('q')),
+    )(input)
 }
 
 fn save(input: &str) -> IResult<&str, Command> {
-    value(Command::Save, all_consuming(char('w')))(input)
+    nom::combinator::value(
+        Command::Save,
+        nom::combinator::all_consuming(nom::character::complete::char('w')),
+    )(input)
 }
 
 fn save_as(input: &str) -> IResult<&str, Command> {
-    map(
-        separated_pair(char('w'), char(' '), many1(anychar)),
+    nom::combinator::map(
+        nom::sequence::separated_pair(
+            nom::character::complete::char('w'),
+            nom::character::complete::char(' '),
+            nom::multi::many1(nom::character::complete::anychar),
+        ),
         |(_, name)| Command::SaveAs(name.into_iter().collect::<String>()),
     )(input)
 }

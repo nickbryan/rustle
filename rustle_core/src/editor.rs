@@ -8,8 +8,6 @@ use tokio_stream::StreamExt;
 
 // TODO: write tests for existing code
 // TODO: review and refactor all code for correctness
-// TODO: refactor the window component to use layouts. Lift the work of window into editor and have
-// editor use the window API to open buffers etc.
 // TODO: refactor storage to be abstract so that it works on web and terminal.
 // TODO: convert line numbers into a widget
 // TODO: implement selections
