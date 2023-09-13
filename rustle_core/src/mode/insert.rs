@@ -1,7 +1,7 @@
 use crate::{
     editor::Command,
-    mode::{Mode, Normal},
     Key,
+    mode::{Mode, Normal},
 };
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]

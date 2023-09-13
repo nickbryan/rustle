@@ -1,3 +1,6 @@
+use anyhow::{Context, Result};
+use taffy::prelude::*;
+
 use crate::{
     component::{Compositor, TextInput},
     editor::{Command, Component},
@@ -5,8 +8,6 @@ use crate::{
     render::{Frame, View},
     ui::Rect,
 };
-use anyhow::{Context, Result};
-use taffy::prelude::*;
 
 /// `Compositor` is the default root component for the `Editor`.
 pub struct Window {

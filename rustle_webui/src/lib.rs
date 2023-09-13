@@ -1,15 +1,17 @@
 #![warn(clippy::all, clippy::pedantic)]
 
-use crate::{
-    ui::WebCanvas,
-    xterm::{FitAddon, Terminal},
-};
-use rustle_core::{Editor, Event, Key};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::KeyboardEvent;
+
+use rustle_core::{Editor, Event, Key};
+
+use crate::{
+    ui::WebCanvas,
+    xterm::{FitAddon, Terminal},
+};
 
 mod ui;
 mod xterm;

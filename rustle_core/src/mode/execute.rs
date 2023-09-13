@@ -1,5 +1,6 @@
-use crate::{editor::Command, Key};
 use nom::IResult;
+
+use crate::{editor::Command, Key};
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct Execute;
@@ -73,8 +74,9 @@ fn save_as(input: &str) -> IResult<&str, Command> {
 
 #[cfg(test)]
 mod tests {
-    use super::{command_for_input, open, quit, save, save_as};
     use crate::editor::Command;
+
+    use super::{command_for_input, open, quit, save, save_as};
 
     #[test]
     fn test_command_for_input() {

@@ -1,6 +1,7 @@
-use crate::render;
 use ropey::Rope;
 use unicode_segmentation::{GraphemeCursor, GraphemeIncomplete, UnicodeSegmentation};
+
+use crate::render;
 
 pub(crate) trait RopeExt {
     fn next_grapheme_boundary(&self, char_idx: usize) -> usize;
@@ -140,8 +141,9 @@ impl RopeExt for Rope {
 
 #[cfg(test)]
 mod tests {
-    use crate::graphemes::RopeExt;
     use ropey::Rope;
+
+    use super::*;
 
     #[test]
     #[should_panic(expected = "char_idx=100 is out of bounds len=2")]

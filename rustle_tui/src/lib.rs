@@ -1,3 +1,5 @@
+use std::io::{Error as IoError, Write};
+
 use anyhow::Result;
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
@@ -6,11 +8,11 @@ use crossterm::{
     style::{Color as CrosstermColor, Print, SetBackgroundColor, SetForegroundColor},
     terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 };
+
 use rustle_core::{
-    ui::{Color as RustleColor, Rect},
-    Canvas, Cell, Event, EventStream, Key as CoreKey,
+    Canvas,
+    Cell, Event, EventStream, Key as CoreKey, ui::{Color as RustleColor, Rect},
 };
-use std::io::{Error as IoError, Write};
 
 /// Newtype to allow mapping RustleColor to CrosstermColor.
 struct Color(RustleColor);
@@ -50,8 +52,8 @@ impl<W: Write> Canvas for CrosstermCanvas<W> {
     }
 
     fn draw<'a, I>(&mut self, cells: I) -> Result<(), IoError>
-    where
-        I: Iterator<Item = &'a Cell>,
+        where
+            I: Iterator<Item=&'a Cell>,
     {
         let mut prev_background = Color(RustleColor::Reset);
         let mut prev_foreground = Color(RustleColor::Reset);

@@ -1,3 +1,11 @@
+use std::{
+    io::Read,
+    ops::{Index, IndexMut},
+};
+
+use anyhow::{Context, Result};
+use ropey::{Rope, RopeSlice};
+
 use crate::{
     component::status_bar::StatusBar,
     editor::{Command, Component},
@@ -5,12 +13,6 @@ use crate::{
     mode::Mode,
     render::View,
     ui::{Color, Position, Rect},
-};
-use anyhow::{Context, Result};
-use ropey::{Rope, RopeSlice};
-use std::{
-    io::Read,
-    ops::{Index, IndexMut},
 };
 
 #[derive(Debug, Copy, Clone)]
@@ -139,13 +141,13 @@ impl Document {
             }
             row if row
                 >= self
-                    .active_cursor_offset()
-                    .row
-                    .saturating_add(height.saturating_sub(6).into()) =>
-            {
-                row.saturating_sub(height.saturating_sub(5).into())
-                    .saturating_add(1)
-            }
+                .active_cursor_offset()
+                .row
+                .saturating_add(height.saturating_sub(6).into()) =>
+                {
+                    row.saturating_sub(height.saturating_sub(5).into())
+                        .saturating_add(1)
+                }
             _ => self.active_cursor_offset().row,
         };
 
@@ -156,13 +158,13 @@ impl Document {
             }
             col if col
                 >= self
-                    .active_cursor_offset()
-                    .col
-                    .saturating_add(width.saturating_sub(5).into()) =>
-            {
-                col.saturating_sub(width.saturating_sub(5).into())
-                    .saturating_add(1)
-            }
+                .active_cursor_offset()
+                .col
+                .saturating_add(width.saturating_sub(5).into()) =>
+                {
+                    col.saturating_sub(width.saturating_sub(5).into())
+                        .saturating_add(1)
+                }
             _ => self.active_cursor_offset().col,
         };
 
@@ -303,8 +305,8 @@ impl Document {
             Direction::Forward(chars) => self.text.remove(
                 self.active_selection().head
                     ..self
-                        .text
-                        .nth_next_grapheme_boundary(self.active_selection().head, chars),
+                    .text
+                    .nth_next_grapheme_boundary(self.active_selection().head, chars),
             ),
             Direction::Backward(chars) => {
                 let start = self.active_selection().head;
@@ -398,7 +400,7 @@ impl View for Document {
                         (usize::from(row_in_view) + cursor_offset.row).saturating_add(1),
                         usize::from(self.margin_width().saturating_sub(1))
                     )
-                    .as_str(),
+                        .as_str(),
                     Color::Rgb(113, 105, 95),
                     Color::default(),
                 );
@@ -439,7 +441,7 @@ impl View for Document {
                 cursor_position: frame.cursor_position(), // TODO: not accounting for margin.
                 file_name: self.name.clone(),
             }
-            .render_to(frame);
+                .render_to(frame);
         }
     }
 }
@@ -530,7 +532,7 @@ mod tests {
             Rect::default(),
             "1234\nabcd\n🇬🇧🇯🇲🇧🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿\n🦀🌳🦀🌳\n".as_bytes(),
         )
-        .unwrap();
+            .unwrap();
         document.move_cursor_horizontally(Direction::Forward(0));
         assert_eq!(document.active_cursor(), Cursor::new(0, 0));
         document.move_cursor_horizontally(Direction::Forward(1));
@@ -601,9 +603,9 @@ mod tests {
                         \n\
                         🦀🌳🦀🌳🦀🌳🦀\n\
                     "
-            .as_bytes(),
+                .as_bytes(),
         )
-        .unwrap();
+            .unwrap();
         document.move_cursor_vertically(Direction::Forward(0));
         assert_eq!(document.active_cursor(), Cursor::new(0, 0));
         document.move_cursor_vertically(Direction::Forward(1));
@@ -631,9 +633,9 @@ mod tests {
                         \n\
                         🦀🌳🦀🌳🦀🌳🦀\n\
                     "
-            .as_bytes(),
+                .as_bytes(),
         )
-        .unwrap();
+            .unwrap();
         document.move_cursor_horizontally(Direction::Forward(1));
         assert_eq!(document.active_cursor(), Cursor::new(1, 0));
         document.move_cursor_vertically(Direction::Forward(1));
@@ -678,9 +680,9 @@ mod tests {
                         123asdas\n\
                         🇬🇧🇯🇲🇧🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿\n\
                     "
-            .as_bytes(),
+                .as_bytes(),
         )
-        .unwrap();
+            .unwrap();
         document.move_cursor_horizontally(Direction::Forward(7));
         assert_eq!(document.active_cursor(), Cursor::new(7, 0));
         document.move_cursor_vertically(Direction::Forward(1));
@@ -711,9 +713,9 @@ mod tests {
                         123asdas\n\
                         🇬🇧🇯🇲🇧🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿\n\
                     "
-            .as_bytes(),
+                .as_bytes(),
         )
-        .unwrap();
+            .unwrap();
         document.move_cursor_horizontally(Direction::Forward(8));
         assert_eq!(document.active_cursor(), Cursor::new(8, 0));
         document.move_cursor_vertically(Direction::Forward(1));
@@ -742,9 +744,9 @@ mod tests {
                         🇬🇧🇯🇲🇧🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿\n\
                         abcdefghijklmnopqrstuvwxyz\n\
                     "
-            .as_bytes(),
+                .as_bytes(),
         )
-        .unwrap();
+            .unwrap();
         document.move_cursor_horizontally(Direction::Forward(26));
         assert_eq!(document.active_cursor(), Cursor::new(26, 0));
         document.move_cursor_vertically(Direction::Forward(1));
@@ -787,9 +789,9 @@ mod tests {
                         abc\n\
                         🇬🇧🇯🇲🇧🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿\n\
                     "
-            .as_bytes(),
+                .as_bytes(),
         )
-        .unwrap();
+            .unwrap();
         assert_eq!(document.len(), 3);
         assert_eq!(document.active_cursor(), Cursor::new(0, 0));
 
@@ -829,9 +831,9 @@ mod tests {
                         abc\n\
                         🇬🇧🇯🇲🇧🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿\n\
                     "
-            .as_bytes(),
+                .as_bytes(),
         )
-        .unwrap();
+            .unwrap();
         document.move_cursor_horizontally(Direction::Forward(9));
         assert_eq!(document.len(), 3);
         assert_eq!(document.active_cursor(), Cursor::new(0, 2));
@@ -899,7 +901,7 @@ mod tests {
             Rect::default(),
             "hello\nworld\n".as_bytes(),
         )
-        .unwrap();
+            .unwrap();
         document.move_cursor_horizontally(Direction::Forward(5));
         assert_eq!(document.active_cursor(), Cursor::new(5, 0));
         document.move_cursor_to_line_start();
@@ -916,7 +918,7 @@ mod tests {
             Rect::default(),
             "hello\n\nworld".as_bytes(),
         )
-        .unwrap();
+            .unwrap();
         assert_eq!(document.active_cursor(), Cursor::new(0, 0));
         document.move_cursor_to_line_end();
         assert_eq!(document.active_cursor(), Cursor::new(5, 0));
@@ -932,7 +934,7 @@ mod tests {
             Rect::default(),
             "hello\n\nworld".as_bytes(),
         )
-        .unwrap();
+            .unwrap();
         assert_eq!(document.line(0).unwrap(), RopeSlice::from("hello"));
         assert_eq!(document.line(1).unwrap(), RopeSlice::from(""));
         assert_eq!(document.line(2).unwrap(), RopeSlice::from("world"));

@@ -130,10 +130,11 @@ impl From<&Layout> for Rect {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use taffy::geometry::Point;
     use taffy::layout::Layout;
     use taffy::prelude::Size;
+
+    use super::*;
 
     #[test]
     fn position_from_point_sets_col_and_row() {

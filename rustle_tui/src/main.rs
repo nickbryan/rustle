@@ -1,11 +1,13 @@
 #![warn(clippy::all, clippy::pedantic)]
 
+use std::panic::{self, PanicInfo};
+
 use anyhow::{Context, Error};
 use backtrace::Backtrace;
 use crossterm::{style::Print, terminal::LeaveAlternateScreen};
+
 use rustle_core::Editor;
-use rustle_tui::{map_crossterm_event_stream, CrosstermCanvas};
-use std::panic::{self, PanicInfo};
+use rustle_tui::{CrosstermCanvas, map_crossterm_event_stream};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -46,5 +48,5 @@ fn panic_hook(info: &PanicInfo<'_>) {
             "thread '<unnamed>' panicked at '{msg}', {location}\n\r{stacktrace}"
         )),
     )
-    .unwrap();
+        .unwrap();
 }

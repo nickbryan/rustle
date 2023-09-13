@@ -1,13 +1,16 @@
-use crate::xterm::Terminal;
-use anyhow::{Context, Result};
-use rustle_core::{
-    ui::{Color, Rect},
-    Canvas, Cell,
-};
 use std::{
     io,
     io::{Error as IoError, Write},
 };
+
+use anyhow::{Context, Result};
+
+use rustle_core::{
+    Canvas,
+    Cell, ui::{Color, Rect},
+};
+
+use crate::xterm::Terminal;
 
 pub(crate) struct WebCanvas {
     width: u16,
@@ -116,7 +119,7 @@ impl Canvas for WebCanvas {
             .map_err(|e| IoError::new(io::ErrorKind::Other, format!("{e}")))
     }
 
-    fn draw<'a, I: Iterator<Item = &'a Cell>>(&mut self, cells: I) -> Result<(), IoError> {
+    fn draw<'a, I: Iterator<Item=&'a Cell>>(&mut self, cells: I) -> Result<(), IoError> {
         let mut prev_background = Color::Reset;
         let mut prev_foreground = Color::Reset;
 

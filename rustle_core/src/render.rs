@@ -1,9 +1,11 @@
-use crate::ui::{Color, Position, Rect};
-use anyhow::Result;
 use std::io::Error as IoError;
+
+use anyhow::Result;
 use thiserror::Error;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
+
+use crate::ui::{Color, Position, Rect};
 
 /// Canvas is an interface to the ui. It could be the terminal or web ui.
 pub trait Canvas {
@@ -17,7 +19,7 @@ pub trait Canvas {
     ///
     /// # Errors
     /// TODO...
-    fn draw<'a, I: Iterator<Item = &'a Cell>>(&mut self, cells: I) -> Result<(), IoError>;
+    fn draw<'a, I: Iterator<Item=&'a Cell>>(&mut self, cells: I) -> Result<(), IoError>;
 
     /// Flush the ui's current buffer.
     ///
@@ -359,7 +361,7 @@ mod tests {
         let frame = Frame::empty(Rect::new(10, 10));
         let other = Frame::empty(Rect::new(10, 10));
         let empty_diff: Vec<&Cell> = vec![];
-        assert_eq!(empty_diff, frame.diff(&other),);
+        assert_eq!(empty_diff, frame.diff(&other));
     }
 
     #[test]
@@ -374,32 +376,32 @@ mod tests {
                     position: Position { col: 0, row: 0 },
                     symbol: "h".to_string(),
                     foreground: Color::DarkGray,
-                    background: Color::White
+                    background: Color::White,
                 },
                 &Cell {
                     position: Position { col: 1, row: 0 },
                     symbol: "e".to_string(),
                     foreground: Color::DarkGray,
-                    background: Color::White
+                    background: Color::White,
                 },
                 &Cell {
                     position: Position { col: 2, row: 0 },
                     symbol: "l".to_string(),
                     foreground: Color::DarkGray,
-                    background: Color::White
+                    background: Color::White,
                 },
                 &Cell {
                     position: Position { col: 3, row: 0 },
                     symbol: "l".to_string(),
                     foreground: Color::DarkGray,
-                    background: Color::White
+                    background: Color::White,
                 },
                 &Cell {
                     position: Position { col: 4, row: 0 },
                     symbol: "o".to_string(),
                     foreground: Color::DarkGray,
-                    background: Color::White
-                }
+                    background: Color::White,
+                },
             ],
             clean.diff(&dirty),
         );
@@ -419,32 +421,32 @@ mod tests {
                     position: Position { col: 0, row: 0 },
                     symbol: " ".to_string(),
                     foreground: Color::DarkGray,
-                    background: Color::White
+                    background: Color::White,
                 },
                 &Cell {
                     position: Position { col: 1, row: 0 },
                     symbol: " ".to_string(),
                     foreground: Color::DarkGray,
-                    background: Color::White
+                    background: Color::White,
                 },
                 &Cell {
                     position: Position { col: 2, row: 0 },
                     symbol: " ".to_string(),
                     foreground: Color::DarkGray,
-                    background: Color::White
+                    background: Color::White,
                 },
                 &Cell {
                     position: Position { col: 3, row: 0 },
                     symbol: " ".to_string(),
                     foreground: Color::DarkGray,
-                    background: Color::White
+                    background: Color::White,
                 },
                 &Cell {
                     position: Position { col: 4, row: 0 },
                     symbol: " ".to_string(),
                     foreground: Color::DarkGray,
-                    background: Color::White
-                }
+                    background: Color::White,
+                },
             ],
             clean.diff(&dirty),
         );

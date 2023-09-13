@@ -1,13 +1,13 @@
-mod execute;
-mod insert;
-mod normal;
+use std::fmt::{Display, Formatter, Result as FmtResult};
 
 // TODO: sort visibility of this properly.
 pub use execute::*;
 pub use insert::*;
 pub use normal::*;
 
-use std::fmt::{Display, Formatter, Result as FmtResult};
+mod execute;
+mod insert;
+mod normal;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Mode {

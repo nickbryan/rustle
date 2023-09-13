@@ -1,3 +1,8 @@
+use std::{collections::HashMap, fs::File, io};
+
+use anyhow::{Context, Result};
+use taffy::prelude::*;
+
 use crate::{
     component::document::Document,
     component::Welcome,
@@ -6,9 +11,6 @@ use crate::{
     render::{Frame, View},
     ui::{Position, Rect},
 };
-use anyhow::{Context, Result};
-use std::{collections::HashMap, fs::File, io};
-use taffy::prelude::*;
 
 /// `Compositor` is the default root component for the `Editor`.
 pub struct Compositor {
@@ -111,7 +113,7 @@ impl Component for Compositor {
                             File::open(path.clone().as_str()).context("opening file")?,
                         ),
                     )
-                    .context("opening document")?,
+                        .context("opening document")?,
                 );
                 self.document_name_indexes
                     .insert(path.clone(), self.documents.len() - 1);
@@ -145,7 +147,7 @@ impl View for Compositor {
             Welcome {
                 size: self.buffer_space(),
             }
-            .render_to(frame);
+                .render_to(frame);
         } else {
             self.documents.iter().for_each(|doc| doc.render_to(frame));
         }

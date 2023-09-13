@@ -1,3 +1,5 @@
+use anyhow::Result;
+
 use crate::{
     editor::Command,
     editor::Component,
@@ -5,7 +7,6 @@ use crate::{
     render::{Frame, View},
     ui::{Color, Position},
 };
-use anyhow::Result;
 
 pub struct TextInput {
     cursor_position: usize,
