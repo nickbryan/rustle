@@ -32,18 +32,18 @@ impl Normal {
             Key::Down => Some(Command::PreviousWindow),
             _ => None,
         }
-            .map_or_else(
-                || {
-                    let command = command_for_input(&self.input_buffer);
+        .map_or_else(
+            || {
+                let command = command_for_input(&self.input_buffer);
 
-                    if command.is_some() {
-                        self.input_buffer.clear();
-                    }
+                if command.is_some() {
+                    self.input_buffer.clear();
+                }
 
-                    command
-                },
-                Some,
-            )
+                command
+            },
+            Some,
+        )
     }
 }
 

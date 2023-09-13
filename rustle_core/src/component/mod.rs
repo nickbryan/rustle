@@ -9,4 +9,3 @@ mod status_bar;
 mod text_input;
 mod welcome;
 mod window;
-

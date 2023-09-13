@@ -113,7 +113,7 @@ impl Component for Compositor {
                             File::open(path.clone().as_str()).context("opening file")?,
                         ),
                     )
-                        .context("opening document")?,
+                    .context("opening document")?,
                 );
                 self.document_name_indexes
                     .insert(path.clone(), self.documents.len() - 1);
@@ -147,7 +147,7 @@ impl View for Compositor {
             Welcome {
                 size: self.buffer_space(),
             }
-                .render_to(frame);
+            .render_to(frame);
         } else {
             self.documents.iter().for_each(|doc| doc.render_to(frame));
         }

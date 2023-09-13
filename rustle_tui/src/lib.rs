@@ -10,8 +10,8 @@ use crossterm::{
 };
 
 use rustle_core::{
-    Canvas,
-    Cell, Event, EventStream, Key as CoreKey, ui::{Color as RustleColor, Rect},
+    ui::{Color as RustleColor, Rect},
+    Canvas, Cell, Event, EventStream, Key as CoreKey,
 };
 
 /// Newtype to allow mapping RustleColor to CrosstermColor.
@@ -52,8 +52,8 @@ impl<W: Write> Canvas for CrosstermCanvas<W> {
     }
 
     fn draw<'a, I>(&mut self, cells: I) -> Result<(), IoError>
-        where
-            I: Iterator<Item=&'a Cell>,
+    where
+        I: Iterator<Item = &'a Cell>,
     {
         let mut prev_background = Color(RustleColor::Reset);
         let mut prev_foreground = Color(RustleColor::Reset);

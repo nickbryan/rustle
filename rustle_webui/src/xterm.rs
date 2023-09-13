@@ -1,4 +1,4 @@
-use wasm_bindgen::prelude::{Closure, wasm_bindgen};
+use wasm_bindgen::prelude::{wasm_bindgen, Closure};
 use web_sys::{Element, KeyboardEvent};
 
 #[wasm_bindgen(module = "xterm")]
