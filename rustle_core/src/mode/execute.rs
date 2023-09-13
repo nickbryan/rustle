@@ -1,5 +1,4 @@
-use crate::editor::Command;
-use crate::Key;
+use crate::{editor::Command, Key};
 use nom::IResult;
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]

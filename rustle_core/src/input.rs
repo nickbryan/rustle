@@ -1,5 +1,4 @@
-use std::io::Error as IoError;
-use std::pin::Pin;
+use std::{io::Error as IoError, pin::Pin};
 
 /// `Key` presses accepted by the editor.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

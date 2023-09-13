@@ -1,13 +1,13 @@
-use crate::component::document::Document;
-use crate::component::Welcome;
-use crate::editor::{Command, Component};
-use crate::mode::Mode;
-use crate::render::{Frame, View};
-use crate::ui::{Position, Rect};
+use crate::{
+    component::document::Document,
+    component::Welcome,
+    editor::{Command, Component},
+    mode::Mode,
+    render::{Frame, View},
+    ui::{Position, Rect},
+};
 use anyhow::{Context, Result};
-use std::collections::HashMap;
-use std::fs::File;
-use std::io;
+use std::{collections::HashMap, fs::File, io};
 use taffy::prelude::*;
 
 /// `Compositor` is the default root component for the `Editor`.

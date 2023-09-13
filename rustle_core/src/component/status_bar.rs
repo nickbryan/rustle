@@ -1,5 +1,7 @@
-use crate::render::{Frame, View};
-use crate::ui::{Color, Position, Rect};
+use crate::{
+    render::{Frame, View},
+    ui::{Color, Position, Rect},
+};
 
 pub struct StatusBar {
     pub area: Rect,

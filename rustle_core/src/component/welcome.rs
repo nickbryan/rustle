@@ -1,6 +1,6 @@
-use crate::ui::Position;
 use crate::{
     render::View,
+    ui::Position,
     ui::{Color, Rect},
 };
 

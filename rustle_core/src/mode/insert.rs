@@ -1,6 +1,8 @@
-use crate::editor::Command;
-use crate::mode::{Mode, Normal};
-use crate::Key;
+use crate::{
+    editor::Command,
+    mode::{Mode, Normal},
+    Key,
+};
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct Insert;

@@ -1,5 +1,4 @@
-use taffy::geometry::Point;
-use taffy::layout::Layout;
+use taffy::{geometry::Point, layout::Layout};
 
 /// Colors supported by the editor.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]

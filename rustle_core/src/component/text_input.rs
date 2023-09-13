@@ -1,8 +1,10 @@
-use crate::editor::Command;
-use crate::editor::Component;
-use crate::mode::{Mode, Normal};
-use crate::render::{Frame, View};
-use crate::ui::{Color, Position};
+use crate::{
+    editor::Command,
+    editor::Component,
+    mode::{Mode, Normal},
+    render::{Frame, View},
+    ui::{Color, Position},
+};
 use anyhow::Result;
 
 pub struct TextInput {

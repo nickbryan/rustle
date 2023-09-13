@@ -1,13 +1,17 @@
-use crate::component::status_bar::StatusBar;
-use crate::editor::{Command, Component};
-use crate::graphemes::RopeExt;
-use crate::mode::Mode;
-use crate::render::View;
-use crate::ui::{Color, Position, Rect};
+use crate::{
+    component::status_bar::StatusBar,
+    editor::{Command, Component},
+    graphemes::RopeExt,
+    mode::Mode,
+    render::View,
+    ui::{Color, Position, Rect},
+};
 use anyhow::{Context, Result};
 use ropey::{Rope, RopeSlice};
-use std::io::Read;
-use std::ops::{Index, IndexMut};
+use std::{
+    io::Read,
+    ops::{Index, IndexMut},
+};
 
 #[derive(Debug, Copy, Clone)]
 pub(crate) enum Direction {

@@ -1,9 +1,13 @@
 use crate::xterm::Terminal;
 use anyhow::{Context, Result};
-use rustle_core::ui::{Color, Rect};
-use rustle_core::{Canvas, Cell};
-use std::io;
-use std::io::{Error as IoError, Write};
+use rustle_core::{
+    ui::{Color, Rect},
+    Canvas, Cell,
+};
+use std::{
+    io,
+    io::{Error as IoError, Write},
+};
 
 pub(crate) struct WebCanvas {
     width: u16,

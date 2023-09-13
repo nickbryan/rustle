@@ -1,8 +1,10 @@
-use crate::component::{Compositor, TextInput};
-use crate::editor::{Command, Component};
-use crate::mode::Mode;
-use crate::render::{Frame, View};
-use crate::ui::Rect;
+use crate::{
+    component::{Compositor, TextInput},
+    editor::{Command, Component},
+    mode::Mode,
+    render::{Frame, View},
+    ui::Rect,
+};
 use anyhow::{Context, Result};
 use taffy::prelude::*;
 

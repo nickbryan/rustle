@@ -1,7 +1,9 @@
 #![warn(clippy::all, clippy::pedantic)]
 
-use crate::ui::WebCanvas;
-use crate::xterm::{FitAddon, Terminal};
+use crate::{
+    ui::WebCanvas,
+    xterm::{FitAddon, Terminal},
+};
 use rustle_core::{Editor, Event, Key};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;

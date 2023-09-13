@@ -1,7 +1,10 @@
-use crate::component::Window;
-use crate::mode::Normal;
-use crate::render::{View, Viewport};
-use crate::{mode, Canvas, Event, EventStream, Mode};
+use crate::{
+    component::Window,
+    mode,
+    mode::Normal,
+    render::{View, Viewport},
+    Canvas, Event, EventStream, Mode,
+};
 use anyhow::{Error, Result};
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
