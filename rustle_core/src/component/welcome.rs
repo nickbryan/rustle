@@ -1,7 +1,7 @@
 use crate::{
     render::View,
-    ui::{Color, Rect},
     ui::Position,
+    ui::{Color, Rect},
 };
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");

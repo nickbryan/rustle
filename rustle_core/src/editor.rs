@@ -3,11 +3,11 @@ use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 
 use crate::{
-    Canvas,
     component::Window,
-    Event,
-    EventStream,
-    mode, Mode, mode::Normal, render::{View, Viewport},
+    mode,
+    mode::Normal,
+    render::{View, Viewport},
+    Canvas, Event, EventStream, Mode,
 };
 
 // TODO: write tests for existing code
@@ -65,9 +65,9 @@ pub trait Component {
 /// `Editor` is the entry point into the application and is responsible for orchestrating
 /// communication between `Component`s.
 pub struct Editor<'a, VC, C>
-    where
-        VC: View + Component,
-        C: Canvas,
+where
+    VC: View + Component,
+    C: Canvas,
 {
     mode: Mode,
     root_component: VC,
@@ -76,8 +76,8 @@ pub struct Editor<'a, VC, C>
 }
 
 impl<'a, C> Editor<'a, Window, C>
-    where
-        C: Canvas,
+where
+    C: Canvas,
 {
     /// Create a new editor using the default `View` `Component` and the given `Canvas`.
     ///
@@ -100,9 +100,9 @@ impl<'a, C> Editor<'a, Window, C>
 }
 
 impl<'a, VC, C> Editor<'a, VC, C>
-    where
-        VC: Component + View,
-        C: Canvas,
+where
+    VC: Component + View,
+    C: Canvas,
 {
     /// Consume the given `EventStream` to run/drive the Editor.
     ///

@@ -19,7 +19,7 @@ pub trait Canvas {
     ///
     /// # Errors
     /// TODO...
-    fn draw<'a, I: Iterator<Item=&'a Cell>>(&mut self, cells: I) -> Result<(), IoError>;
+    fn draw<'a, I: Iterator<Item = &'a Cell>>(&mut self, cells: I) -> Result<(), IoError>;
 
     /// Flush the ui's current buffer.
     ///
