@@ -47,12 +47,12 @@ where
 
 type MessageBox<R, S, A> = Box<dyn Dispatch<Actor<R, S, A>> + Send>;
 
-pub struct Mailbox<R: Send, S: Send, A> {
+pub struct Mailbox<R: Send, S: Send + Clone + Sync, A> {
     rx: UnboundedReceiver<MessageBox<R, S, A>>,
     tx: UnboundedSender<MessageBox<R, S, A>>,
 }
 
-impl<R: Send, S: Send, A> Mailbox<R, S, A> {
+impl<R: Send, S: Send + Clone + Sync, A> Mailbox<R, S, A> {
     pub fn new() -> Self {
         let (tx, rx) = mpsc::unbounded_channel();
         Self { tx, rx }
@@ -67,11 +67,11 @@ impl<R: Send, S: Send, A> Mailbox<R, S, A> {
     }
 }
 
-pub struct Address<R: Send, S: Send, A> {
+pub struct Address<R: Send, S: Send + Clone + Sync, A> {
     tx: UnboundedSender<MessageBox<R, S, A>>,
 }
 
-impl<R: Send, S: Send, A> Address<R, S, A> {
+impl<R: Send, S: Send + Clone + Sync, A> Address<R, S, A> {
     fn new(tx: UnboundedSender<MessageBox<R, S, A>>) -> Self {
         Self { tx }
     }
