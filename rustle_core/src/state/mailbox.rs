@@ -28,28 +28,28 @@ pub trait Deliver<M: Message> {
 }
 
 #[async_trait]
-pub trait Dispatch<C> {
-    async fn dispatch(self: Box<Self>, courier: &mut C);
+pub trait Assign<C> {
+    async fn assign(self: Box<Self>, courier: &mut C);
 }
 
 #[async_trait]
-impl<C, M> Dispatch<C> for Envelope<M>
+impl<C, M> Assign<C> for Envelope<M>
 where
     C: Deliver<M> + Send,
     M: Message + Send,
     Self: Send,
 {
-    async fn dispatch(self: Box<Self>, courier: &mut C) {
+    async fn assign(self: Box<Self>, courier: &mut C) {
         let reply = courier.deliver(self.message).await;
         let _ = self.sender.send(reply); // TODO: address if this error needs handling.
     }
 }
 
-type MessageBox<R, S, A> = Box<dyn Dispatch<Actor<R, S, A>> + Send>;
+type Assignment<R, S, A> = Box<dyn Assign<Actor<R, S, A>> + Send>;
 
 pub struct Mailbox<R: Send, S: Send + Clone + Sync, A> {
-    rx: UnboundedReceiver<MessageBox<R, S, A>>,
-    tx: UnboundedSender<MessageBox<R, S, A>>,
+    rx: UnboundedReceiver<Assignment<R, S, A>>,
+    tx: UnboundedSender<Assignment<R, S, A>>,
 }
 
 impl<R: Send, S: Send + Clone + Sync, A> Mailbox<R, S, A> {
@@ -62,17 +62,17 @@ impl<R: Send, S: Send + Clone + Sync, A> Mailbox<R, S, A> {
         Address::new(self.tx.clone())
     }
 
-    pub async fn recv(&mut self) -> Option<MessageBox<R, S, A>> {
+    pub async fn recv(&mut self) -> Option<Assignment<R, S, A>> {
         self.rx.recv().await
     }
 }
 
 pub struct Address<R: Send, S: Send + Clone + Sync, A> {
-    tx: UnboundedSender<MessageBox<R, S, A>>,
+    tx: UnboundedSender<Assignment<R, S, A>>,
 }
 
 impl<R: Send, S: Send + Clone + Sync, A> Address<R, S, A> {
-    fn new(tx: UnboundedSender<MessageBox<R, S, A>>) -> Self {
+    fn new(tx: UnboundedSender<Assignment<R, S, A>>) -> Self {
         Self { tx }
     }
 

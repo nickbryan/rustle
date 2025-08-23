@@ -46,8 +46,8 @@ where
     }
 
     pub async fn act(&mut self) {
-        while let Some(message) = self.mailbox.recv().await {
-            message.dispatch(self).await;
+        while let Some(assignment) = self.mailbox.recv().await {
+            assignment.assign(self).await;
         }
     }
 }
