@@ -1,15 +1,17 @@
 use async_trait::async_trait;
-use crate::{
+use crate::{ 
     state::{
         mailbox::Address,
         mailbox::Mailbox,
         reducer::Reducer,
-        mailbox::Deliver,
-        message::Dispatch
+        mailbox::Handle,
+        message::Dispatch,
+        message::Select
     }
 };
 
 use tokio::sync::watch;
+use crate::state::selector::Selector;
 
 pub struct Actor<R, S, A>
 where
@@ -53,13 +55,13 @@ where
 }
 
 #[async_trait]
-impl <R, S, A> Deliver<Dispatch<A>> for Actor<R, S, A>
+impl <R, S, A> Handle<Dispatch<A>> for Actor<R, S, A>
 where
     R: Reducer<S, A> + Send,
     S: Send + Clone + Sync,
     A: Send,
 {
-    async fn deliver(&mut self, message: Dispatch<A>) {
+    async fn handle(&mut self, message: Dispatch<A>) {
         let action = message.into_action();
 
         let old_state = self.state.take().unwrap();
@@ -67,5 +69,21 @@ where
 
         self.state = Some(new_state.clone());
         let _ = self.notifier.send(new_state);
+    }
+}
+
+#[async_trait]
+impl<R, S, A, Sel, Result> Handle<Select<S, Sel>> for Actor<R, S, A>
+where
+    R: Reducer<S, A> + Send,
+    S: Send + Clone + Sync,
+    A: Send,
+    Sel: Selector<S, Result = Result> + Send + 'static,
+    Result: Send,
+{
+    async fn handle(&mut self, message: Select<S, Sel>) -> Result {
+        let state = self.state.as_ref().unwrap();
+        let selector = message.into_selector();
+        selector.select(state)
     }
 }

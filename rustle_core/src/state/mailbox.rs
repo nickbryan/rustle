@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use tokio::{
-    sync::{
+use tokio::{ 
+    sync::{ 
         mpsc::{self, UnboundedReceiver, UnboundedSender},
         oneshot::{self, Sender},
     }
@@ -8,39 +8,39 @@ use tokio::{
 use crate::state::actor::Actor;
 
 pub trait Message: Send {
-    type Reply: Send;
+    type Response: Send;
 }
 
 struct Envelope<M: Message> {
     message: M,
-    sender: Sender<M::Reply>
+    sender: Sender<M::Response>
 }
 
 impl<M: Message> Envelope<M> {
-    fn new(message: M, sender: Sender<M::Reply>) -> Self {
+    fn new(message: M, sender: Sender<M::Response>) -> Self {
         Self { message, sender }
     }
 }
 
 #[async_trait]
-pub trait Deliver<M: Message> {
-    async fn deliver(&mut self, message: M) -> M::Reply;
+pub trait Handle<M: Message> {
+    async fn handle(&mut self, message: M) -> M::Response;
 }
 
 #[async_trait]
 pub trait Assign<C> {
-    async fn assign(self: Box<Self>, courier: &mut C);
+    async fn assign(self: Box<Self>, handler: &mut C);
 }
 
 #[async_trait]
-impl<C, M> Assign<C> for Envelope<M>
+impl<H, M> Assign<H> for Envelope<M>
 where
-    C: Deliver<M> + Send,
+    H: Handle<M> + Send,
     M: Message + Send,
     Self: Send,
 {
-    async fn assign(self: Box<Self>, courier: &mut C) {
-        let reply = courier.deliver(self.message).await;
+    async fn assign(self: Box<Self>, handler: &mut H) {
+        let reply = handler.handle(self.message).await;
         let _ = self.sender.send(reply); // TODO: address if this error needs handling.
     }
 }
@@ -76,9 +76,9 @@ impl<R: Send, S: Send + Clone + Sync, A> Address<R, S, A> {
         Self { tx }
     }
 
-    pub async fn send<M: Message + 'static>(&self, message: M) -> M::Reply
+    pub async fn send<M: Message + 'static>(&self, message: M) -> M::Response
     where
-        Actor<R, S, A>: Deliver<M>
+        Actor<R, S, A>: Handle<M>
     {
         let (tx, rx) = oneshot::channel();
         let _ = self.tx.send(Box::new(Envelope::new(message, tx))); // TODO: address if this error needs handling.
