@@ -12,7 +12,17 @@ use crate::{
 };
 use tokio::sync::watch;
 
-/// A store is a container for the state.
+/// The `Store` is the primary interface for interacting with the application state.
+/// It provides a simple and consistent way to manage state in a concurrent environment.
+///
+/// The `Store` is responsible for:
+///
+/// * Dispatching actions to the reducer to trigger state changes.
+/// * Selecting data from the state using selectors.
+/// * Notifying subscribers of state changes.
+///
+/// The `Store` is generic over the reducer, state, and action types, making it highly
+/// flexible and adaptable to different use cases.
 pub struct Store<R: Send, S: Send + Clone + Sync, A> {
     mailbox: Address<R, S, A>,
     subscription: watch::Receiver<S>,
@@ -24,6 +34,7 @@ where
     A: Send + 'static,
     R: Reducer<S, A> + Send + 'static,
 {
+    /// Creates a new store with a default initial state.
     pub fn new(root_reducer: R) -> Self
     where
         S: Default
@@ -31,6 +42,7 @@ where
         Self::new_with_state(root_reducer, Default::default())
     }
 
+    /// Creates a new store with a given initial state.
     pub fn new_with_state(root_reducer: R, state: S) -> Self {
         let mut actor = Actor::new(root_reducer, state);
         let mailbox = actor.mailbox();
@@ -46,10 +58,15 @@ where
         }
     }
 
+    /// Dispatches an action to the store.
+    /// The action will be processed by the reducer, which will update the state.
+    /// This is the only way to trigger a state change.
     pub async fn dispatch(&self, action: A) {
         self.mailbox.send(Dispatch::new(action)).await;
     }
 
+    /// Selects a value from the state using a selector.
+    /// Selectors are used to derive data from the state.
     pub async fn select<Sel: Selector<S, Result = Res>, Res>(&self, selector: Sel) -> Res
     where
         Sel: Selector<S, Result = Res> + Send + 'static,
@@ -58,6 +75,8 @@ where
         self.mailbox.send(Select::new(selector)).await
     }
 
+    /// Subscribes to state changes.
+    /// The provided callback will be called whenever the state changes.
     pub fn subscribe<F>(&self, callback: F)
     where
         F: Fn(&S) + Send + Sync + 'static,
