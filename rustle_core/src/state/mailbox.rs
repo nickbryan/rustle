@@ -26,28 +26,28 @@ impl<M: Message> Envelope<M> {
     }
 }
 
-/// A handle is a trait that actors must implement to handle messages.
+/// `Deliver` is a trait implemented by handlers to instruct them what to do with a message.
 #[async_trait]
-pub trait Handle<M: Message> {
-    async fn handle(&mut self, message: M) -> M::Response;
+pub trait Deliver<M: Message> {
+    async fn deliver(&mut self, message: M) -> M::Response;
 }
 
-/// Assign is a trait implemented for Envelope to assign itself to a handler.
+/// Assign is a trait implemented for Envelope to assign itself to an Actor.
 #[async_trait]
-pub trait Assign<H> {
-    async fn assign(self: Box<Self>, handler: &mut H);
+pub trait Assign<A> {
+    async fn assign(self: Box<Self>, courier: &mut A);
 }
 
 #[async_trait]
-impl<H, M> Assign<H> for Envelope<M>
+impl<A, M> Assign<A> for Envelope<M>
 where
-    H: Handle<M> + Send,
+    A: Deliver<M> + Send,
     M: Message + Send,
     Self: Send,
 {
     /// Assigns the message to the handler. The handler will send the response back to the sender.
-    async fn assign(self: Box<Self>, handler: &mut H) {
-        let reply = handler.handle(self.message).await;
+    async fn assign(self: Box<Self>, courier: &mut A) {
+        let reply = courier.deliver(self.message).await;
         let _ = self.sender.send(reply); // TODO: address if this error needs handling.
     }
 }
@@ -104,7 +104,7 @@ impl<R: Send, S: Send + Clone + Sync, A> Address<R, S, A> {
     /// Send a message to the `Mailbox`.
     pub async fn send<M: Message + 'static>(&self, message: M) -> M::Response
     where
-        Actor<R, S, A>: Handle<M>
+        Actor<R, S, A>: Deliver<M>
     {
         let (tx, rx) = oneshot::channel();
         let _ = self.tx.send(Box::new(Envelope::new(message, tx))); // TODO: address if this error needs handling.

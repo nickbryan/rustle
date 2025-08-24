@@ -4,7 +4,7 @@ use crate::{
         mailbox::Address,
         mailbox::Mailbox,
         reducer::Reducer,
-        mailbox::Handle,
+        mailbox::Deliver,
         message::Dispatch,
         message::Select
     }
@@ -79,7 +79,7 @@ where
 }
 
 #[async_trait]
-impl <R, S, A> Handle<Dispatch<A>> for Actor<R, S, A>
+impl <R, S, A> Deliver<Dispatch<A>> for Actor<R, S, A>
 where
     R: Reducer<S, A> + Send,
     S: Send + Clone + Sync,
@@ -87,7 +87,7 @@ where
 {
     /// Handles a `Dispatch` message.
     /// This will run the reducer and update the state.
-    async fn handle(&mut self, message: Dispatch<A>) {
+    async fn deliver(&mut self, message: Dispatch<A>) {
         let action = message.into_action();
 
         let old_state = self.state.take().unwrap();
@@ -99,7 +99,7 @@ where
 }
 
 #[async_trait]
-impl<R, S, A, Sel, Result> Handle<Select<S, Sel>> for Actor<R, S, A>
+impl<R, S, A, Sel, Result> Deliver<Select<S, Sel>> for Actor<R, S, A>
 where
     R: Reducer<S, A> + Send,
     S: Send + Clone + Sync,
@@ -109,7 +109,7 @@ where
 {
     /// Handles a `Select` message.
     /// This will run a selector on the current state and return the result.
-    async fn handle(&mut self, message: Select<S, Sel>) -> Result {
+    async fn deliver(&mut self, message: Select<S, Sel>) -> Result {
         let state = self.state.as_ref().unwrap();
         let selector = message.into_selector();
         selector.select(state)
