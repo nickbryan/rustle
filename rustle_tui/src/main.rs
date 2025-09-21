@@ -1,3 +1,5 @@
+use rustle_core::Editor;
+
 fn main() {
-    println!("Hello, world!");
+    let _ = Editor::new();
 }

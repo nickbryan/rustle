@@ -38,12 +38,11 @@
 //! This architecture ensures that the state is always predictable and that all state
 //! changes are explicit and traceable.
 
-mod store;
-mod mailbox;
 mod actor;
-mod reducer;
+mod mailbox;
 mod message;
+mod reducer;
 mod selector;
+mod store;
 
 pub use store::Store;
-pub use reducer::{Reducer};

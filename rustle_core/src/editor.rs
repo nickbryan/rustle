@@ -7,13 +7,13 @@ use crate::state::Store;
 /// The `Editor` holds an instance of the `Store`, which is responsible for managing
 /// the application state. All state changes and queries are channeled through the
 /// `Store`, ensuring a predictable and maintainable architecture.
-struct Editor {
+pub struct Editor {
     state: Store<fn(State, Action) -> State, State, Action>,
 }
 
 impl Editor {
     /// Creates a new editor.
-    fn new() -> Self {
+    pub fn new() -> Self {
         let editor = Self {
             state: Store::new(root_reducer),
         };

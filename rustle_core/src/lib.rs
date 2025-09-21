@@ -3,5 +3,8 @@
 //! This crate provides the core functionality for the Rustle text editor, including
 //! an actor-based state management system inspired by Redux.
 
-pub mod state;
+mod state;
 mod editor;
+mod ui;
+
+pub use editor::Editor;

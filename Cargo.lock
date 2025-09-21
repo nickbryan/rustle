@@ -208,6 +208,9 @@ dependencies = [
 [[package]]
 name = "rustle_tui"
 version = "0.1.0"
+dependencies = [
+ "rustle_core",
+]
 
 [[package]]
 name = "rustle_webui"
