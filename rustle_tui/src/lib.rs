@@ -7,13 +7,17 @@ use crossterm::{
     style::{Color as CrosstermColor},
     terminal::{EnterAlternateScreen, LeaveAlternateScreen},
 };
-
-use rustle_core::{
+    use crossterm::cursor::{Hide, MoveTo, Show};
+    use crossterm::style::{Print, SetBackgroundColor, SetForegroundColor};
+    use crossterm::terminal::{Clear, ClearType};
+    use rustle_core::{
     ui::values::Color as RustleColor,
     Event, EventStream, Key as CoreKey,
 };
+    use rustle_core::ui::render::{Canvas, Cell};
+    use rustle_core::ui::values::Rect;
 
-/// Newtype to allow mapping RustleColor to CrosstermColor.
+    /// Newtype to allow mapping RustleColor to CrosstermColor.
 struct Color(RustleColor);
 
 /// Canvas implementation for crossterm.
@@ -42,6 +46,71 @@ impl<W: Write> Drop for CrosstermCanvas<W> {
             .expect("should be able to execute leave alternate screen command");
         crossterm::terminal::disable_raw_mode()
             .expect("should be able to execute disable raw mode command");
+    }
+}
+
+impl<W: Write> Canvas for CrosstermCanvas<W> {
+    fn clear(&mut self) -> Result<(), IoError> {
+        crossterm::queue!(self.out, Clear(ClearType::All))
+    }
+
+    fn draw<'a, I>(&mut self, cells: I) -> Result<(), IoError>
+    where
+        I: Iterator<Item = &'a Cell>,
+    {
+        let mut prev_background = Color(RustleColor::Reset);
+        let mut prev_foreground = Color(RustleColor::Reset);
+
+        for cell in cells {
+            self.position_cursor(cell.position().row, cell.position().col)?;
+
+            if cell.background() != prev_background.0 {
+                crossterm::queue!(
+                    self.out,
+                    SetBackgroundColor(CrosstermColor::from(Color(cell.background())))
+                )?;
+
+                prev_background = Color(cell.background());
+            }
+
+            if cell.foreground() != prev_foreground.0 {
+                crossterm::queue!(
+                    self.out,
+                    SetForegroundColor(CrosstermColor::from(Color(cell.foreground())))
+                )?;
+
+                prev_foreground = Color(cell.foreground());
+            }
+
+            crossterm::queue!(self.out, Print(cell.symbol()))?;
+        }
+
+        crossterm::queue!(
+            self.out,
+            SetBackgroundColor(CrosstermColor::from(Color(RustleColor::Reset))),
+            SetForegroundColor(CrosstermColor::from(Color(RustleColor::Reset))),
+        )
+    }
+
+    fn flush(&mut self) -> Result<(), IoError> {
+        self.out.flush()
+    }
+
+    fn hide_cursor(&mut self) -> Result<(), IoError> {
+        crossterm::queue!(self.out, Hide)
+    }
+
+    fn position_cursor(&mut self, row: u16, col: u16) -> Result<(), IoError> {
+        crossterm::queue!(self.out, MoveTo(col, row))
+    }
+
+    fn show_cursor(&mut self) -> Result<(), IoError> {
+        crossterm::queue!(self.out, Show)
+    }
+
+    fn size(&self) -> Result<Rect, IoError> {
+        let (width, height) = crossterm::terminal::size()?;
+        Ok(Rect::new(width, height))
     }
 }
 

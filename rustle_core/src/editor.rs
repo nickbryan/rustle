@@ -1,7 +1,11 @@
-use std::ops::Add;
+use std::ops::{Add, Deref};
+use taffy::{LengthPercentageAuto, Position, Rect, Style};
 use tokio_stream::StreamExt;
 use crate::input::{Event, EventStream, Key};
 use crate::state::Store;
+use crate::ui::component::{_Component, _Container, _Element, _TextSpan};
+use crate::ui::render::{Canvas, Viewport};
+use crate::ui::values::Color;
 
 /// The `Editor` struct represents the main component of the text editor application.
 /// It encapsulates the entire state of the editor and provides the primary interface
@@ -10,22 +14,22 @@ use crate::state::Store;
 /// The `Editor` holds an instance of the `Store`, which is responsible for managing
 /// the application state. All state changes and queries are channeled through the
 /// `Store`, ensuring a predictable and maintainable architecture.
-pub struct Editor {
+pub struct Editor<C: Canvas> {
     state: Store<fn(State, Action) -> State, State, Action>,
+    canvas: C,
 }
 
-impl Default for Editor {
-    fn default() -> Self {
-        Self {
-            state: Store::new(root_reducer, State {
-                content: "".to_string(),
-                should_quit: false,
-            }),
-        }
+impl<C: Canvas + Send + Sync> Editor<C> {
+    pub fn new(canvas: C) -> Self {
+            Self {
+                state: Store::new(root_reducer, State {
+                    content: "".to_string(),
+                    should_quit: false,
+                }),
+                canvas
+            }
     }
-}
 
-impl Editor {
     /// Consume the given `EventStream` to run/drive the Editor.
     ///
     /// # Errors
@@ -34,9 +38,8 @@ impl Editor {
     /// # Panics
     /// When the command channels are closed unexpectedly.
     pub async fn consume(&mut self, mut event_stream: EventStream) -> Result<(), ()> {
-        self.state.subscribe(move |state| {
-            println!("State update: {:?}", state);
-        });
+        let mut viewport = Viewport::new(&mut self.canvas).unwrap(); // TODO: handle error.
+        let mut state_rx = self.state.subscribe();
 
         while !self.state.select(|state: &State| state.should_quit).await {
             tokio::select! {
@@ -50,6 +53,9 @@ impl Editor {
                         }
                         _ => (),
                     }
+                }
+                Ok(_) = state_rx.changed() => {
+                    viewport.render(state_rx.borrow().deref(), RootComponent).unwrap();
                 }
                 else => return Err(()),
             }
@@ -67,7 +73,7 @@ fn root_reducer(mut state: State, action: Action) -> State {
             state.should_quit = true;
         },
         Action::InsertChar(c) => {
-            state.content = state.content.add(c.to_string().as_str());
+            state.content.push(c);
         }
     }
 
@@ -84,4 +90,34 @@ struct State{
 /// The `Action` enum represents the actions that can be dispatched to the store.
 enum Action {
     InsertChar(char),
+}
+
+struct RootComponent;
+
+struct RootComponentProps {
+    content: String,
+}
+
+impl _Component<&State> for RootComponent {
+    type Props = RootComponentProps;
+
+    fn select(&self, state: &State) -> Self::Props {
+        RootComponentProps{content: state.content.clone() } // TODO: can we get rid of this clone?
+    }
+
+    fn render(&self, props: Self::Props) -> _Element {
+        _Element::Container(_Container{
+            layout: Style{
+                padding: Rect::length(5.0),
+                ..Default::default()
+            },
+            children: vec![
+                _Element::Span(_TextSpan{
+                    background: Color::White,
+                    color: Color::Blue,
+                    text: props.content,
+                })
+            ],
+        })
+    }
 }

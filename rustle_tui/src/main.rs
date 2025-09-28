@@ -17,11 +17,9 @@ async fn main() -> Result<(), Error> {
 
     let canvas = CrosstermCanvas::new(std::io::stdout()).context("creating crossterm canvas")?;
 
-    Editor::default()
+    Editor::new(canvas)
         .consume(map_crossterm_event_stream())
         .await.unwrap(); // TODO: handle errors
-
-    drop(canvas);
 
     Ok(())
 }

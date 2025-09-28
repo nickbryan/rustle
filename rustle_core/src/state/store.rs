@@ -67,20 +67,7 @@ where
         self.mailbox.send(Select::new(selector)).await
     }
 
-    /// Subscribes to state changes.
-    /// The provided callback will be called whenever the state changes.
-    pub fn subscribe<F>(&self, callback: F)
-    where
-        F: Fn(&S) + Send + Sync + 'static,
-    {
-        let mut state = self.subscription.clone();
-
-        tokio::spawn(async move {
-            callback(&state.borrow());
-
-            while state.changed().await.is_ok() {
-                callback(&state.borrow());
-            }
-        });
+    pub fn subscribe(&self) -> watch::Receiver<S> {
+        self.subscription.clone()
     }
 }

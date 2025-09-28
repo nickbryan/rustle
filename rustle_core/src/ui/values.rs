@@ -1,4 +1,4 @@
-use taffy::{geometry::Point, Layout};
+use taffy::{geometry::Point, Layout, Style as TaffyStyle};
 
 /// Colors supported by the editor.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]

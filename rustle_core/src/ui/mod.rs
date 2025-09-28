@@ -1,3 +1,3 @@
-mod component;
-mod render;
+pub mod component;
+pub mod render;
 pub mod values;
