@@ -7,7 +7,7 @@ use backtrace::Backtrace;
 use crossterm::{style::Print, terminal::LeaveAlternateScreen};
 
 use rustle_core::Editor;
-use rustle_tui::{map_crossterm_event_stream, CrosstermCanvas};
+use rustle_tui::CrosstermCanvas;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -18,8 +18,8 @@ async fn main() -> Result<(), Error> {
     let canvas = CrosstermCanvas::new(std::io::stdout()).context("creating crossterm canvas")?;
 
     Editor::new(canvas)
-        .consume(map_crossterm_event_stream())
-        .await.unwrap(); // TODO: handle errors
+        .consume(rustle_tui::map_crossterm_event_stream())
+        .await?;
 
     Ok(())
 }

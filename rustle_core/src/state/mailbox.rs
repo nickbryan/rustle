@@ -1,3 +1,4 @@
+
 use async_trait::async_trait;
 use tokio::{ 
     sync::{ 
@@ -6,6 +7,7 @@ use tokio::{
     }
 };
 use crate::state::actor::Actor;
+use crate::state::error::StateError;
 
 /// A message that can be sent to an actor.
 /// This is a trait that all messages must implement.
@@ -48,7 +50,7 @@ where
     /// Assigns the message to the handler. The handler will send the response back to the sender.
     async fn assign(self: Box<Self>, courier: &mut A) {
         let reply = courier.deliver(self.message).await;
-        let _ = self.sender.send(reply); // TODO: address if this error needs handling.
+        let _ = self.sender.send(reply);  // TODO: handle result and error.
     }
 }
 
@@ -70,7 +72,7 @@ impl<R: Send, S: Send + Clone + Sync, A> Mailbox<R, S, A> {
     /// Creates and returns a new Mailbox.
     pub fn new() -> Self {
         let (tx, rx) = mpsc::unbounded_channel();
-        Self { tx, rx }
+        Self { rx, tx }
     }
 
     /// Returns an address for the mailbox.
@@ -102,12 +104,12 @@ impl<R: Send, S: Send + Clone + Sync, A> Address<R, S, A> {
     }
 
     /// Send a message to the `Mailbox`.
-    pub async fn send<M: Message + 'static>(&self, message: M) -> M::Response
+    pub async fn send<M: Message + 'static>(&self, message: M) -> Result<M::Response, StateError>
     where
         Actor<R, S, A>: Deliver<M>
     {
         let (tx, rx) = oneshot::channel();
-        let _ = self.tx.send(Box::new(Envelope::new(message, tx))); // TODO: address if this error needs handling.
-        rx.await.unwrap() // TODO: address if this error needs handling.
+        self.tx.send(Box::new(Envelope::new(message, tx))).map_err(|_| StateError::ActorTerminated)?;
+        rx.await.map_err(|_| StateError::ActorTerminated)
     }
 }

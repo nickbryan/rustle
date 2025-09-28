@@ -1,14 +1,11 @@
-use crate::{ 
-    state::{ 
+use crate::{
+    state::{
         actor::Actor,
         mailbox::Address,
-        message::{ 
-            Dispatch,
-            Select
-        },
+        message::{Dispatch, Select},
         reducer::Reducer,
-        selector::Selector
-    }
+        selector::Selector,
+    },
 };
 use tokio::sync::watch;
 
@@ -54,7 +51,7 @@ where
     /// The action will be processed by the reducer, which will update the state.
     /// This is the only way to trigger a state change.
     pub async fn dispatch(&self, action: A) {
-        self.mailbox.send(Dispatch::new(action)).await;
+        self.mailbox.send(Dispatch::new(action)).await.unwrap();  // TODO: handle result and error.
     }
 
     /// Selects a value from the state using a selector.
@@ -64,7 +61,7 @@ where
         Sel: Selector<S, Result = Res> + Send + 'static,
         Res: Send + 'static,
     {
-        self.mailbox.send(Select::new(selector)).await
+        self.mailbox.send(Select::new(selector)).await.unwrap()  // TODO: handle result and error.
     }
 
     pub fn subscribe(&self) -> watch::Receiver<S> {

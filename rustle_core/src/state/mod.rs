@@ -46,3 +46,7 @@ mod selector;
 mod store;
 
 pub use store::Store;
+
+pub mod error;
+pub use error::StateError;
+

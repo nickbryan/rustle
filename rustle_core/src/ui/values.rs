@@ -1,4 +1,4 @@
-use taffy::{geometry::Point, Layout, Style as TaffyStyle};
+use taffy::geometry::Point;
 
 /// Colors supported by the editor.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -116,18 +116,6 @@ impl Rect {
     }
 }
 
-impl From<&Layout> for Rect {
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    fn from(layout: &Layout) -> Self {
-        Rect::positioned(
-            layout.size.width as u16,
-            layout.size.height as u16,
-            layout.location.x as u16,
-            layout.location.y as u16,
-        )
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use taffy::geometry::Point;
@@ -155,17 +143,6 @@ mod tests {
         let r = Rect::positioned(0, 0, 10, 20);
         assert_eq!(r.position.col, 10);
         assert_eq!(r.position.row, 20);
-    }
-
-    #[test]
-    fn rect_from_layout_sets_col_and_row() {
-        let mut layout = Layout::new();
-        layout.size = Size {
-            width: 100.0,
-            height: 200.0,
-        };
-        layout.location = Point { x: 3.0, y: 5.0 };
-        assert_eq!(Rect::from(&layout), Rect::positioned(100, 200, 3, 5));
     }
 
     #[test]

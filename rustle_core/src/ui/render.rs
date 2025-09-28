@@ -1,61 +1,11 @@
-use std::io::Error as IoError;
-use crate::ui::component::{_Component, _Element};
+use crate::ui::component::{Component, Element};
 use crate::ui::values::{Color, Position, Rect};
-use anyhow::Result;
-use taffy::{TaffyTree, NodeId, Style, Size, Dimension, AvailableSpace};
+use crate::ui::UiError;
+use std::io::Error as IoError;
+use taffy::{TaffyTree, TaffyError, NodeId, Style, Size, Dimension, AvailableSpace};
 use thiserror::Error;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
-
-// TODO: implement from?
-fn element_to_node(taffy: &mut TaffyTree, element: &_Element) -> Result<NodeId> {
-    match element {
-        _Element::Span(span) => {
-            let style = Style{
-                size: Size{
-                    width: Dimension::length(span.text.len() as f32),
-                    height: Dimension::length(1.0),
-                },
-                ..Default::default()
-            };
-
-            Ok(taffy.new_leaf(style)?)
-        }
-        _Element::Container(container) => {
-            let children = container
-                .children
-                .iter()
-                .map(|child|{
-                    element_to_node(taffy, child).unwrap() // TODO: handle error
-                })
-                .collect::<Vec<NodeId>>();
-
-            Ok(taffy.new_with_children(container.layout.clone(), &children)?)
-        }
-    }
-}
-
-fn render_element(taffy: &mut TaffyTree, node_id: NodeId, element: &_Element, frame: &mut Frame) {
-    let layout = taffy.layout(node_id).unwrap(); // TODO: handle error
-    let position = Position{ // TODO: is this going to mess up our positioning with write having some awareness?
-        col: layout.location.x as u16,
-        row: layout.location.y as u16,
-    };
-
-    match element {
-        _Element::Span(span) => {
-            frame.write(position, &span.text, span.color, span.background);
-        }
-        _Element::Container(container) => {
-            let children = taffy.children(node_id).unwrap();
-
-            for (i, child) in container.children.iter().enumerate() {
-                let child_node = children[i];
-                render_element(taffy, child_node, child, frame);
-            }
-        }
-    }
-}
 
 /// Canvas is an interface to the ui. It could be the terminal or web ui.
 pub trait Canvas {
@@ -172,11 +122,13 @@ pub struct Frame {
 }
 
 impl Frame {
+    #[must_use]
     pub fn area(&self) -> Rect {
         self.area
     }
 
     /// Create a `Frame` with all `Cell`s having the symbol " ".
+    #[must_use]
     pub fn empty(area: Rect) -> Self {
         let size = area.area();
         let mut cells = Vec::with_capacity(size);
@@ -195,6 +147,7 @@ impl Frame {
     }
 
     /// The current cursor position.
+    #[must_use]
     pub fn cursor_position(&self) -> Position {
         self.cursor_position
     }
@@ -240,15 +193,14 @@ impl Frame {
         string: &str,
         foreground: Color,
         background: Color,
-    ) {
-        let str_start = self.index_of(position).unwrap();
+    ) -> Result<(), OutOfBoundsError> {
+        let str_start = self.index_of(position)?;
         let mut cursor = str_start;
 
         // TODO: do we want to cap the line length here? If the line is longer than the width do we truncate?
-        for (_, grapheme) in string[..]
+        for grapheme in string[..]
             .graphemes(true)
             .take((self.area.width - position.col).into())
-            .enumerate()
         {
             self.cells[cursor] = Cell::new(
                 self.cells[cursor].position.col,
@@ -266,6 +218,8 @@ impl Frame {
                 self.cells[i].reset();
             }
         }
+
+        Ok(())
     }
 
     /// Set the cursor position for the final frame render.
@@ -274,6 +228,7 @@ impl Frame {
     }
 }
 
+#[must_use]
 pub fn grapheme_width(g: &str) -> usize {
     if g.as_bytes()[0] <= 127 {
         // Fast-path ascii.
@@ -310,10 +265,8 @@ pub struct Viewport<'a, C: Canvas> {
 
 impl<'a, C: Canvas> Viewport<'a, C> {
     /// Create a new Viewport for the provided Canvas.
-    pub fn new(canvas: &'a mut C) -> Result<Self> {
-        use anyhow::Context;
-
-        let area = canvas.size().context("unable to set Viewport area")?;
+    pub fn new(canvas: &'a mut C) -> Result<Self, UiError> {
+        let area = canvas.size().map_err(UiError::ViewportInitialization)?;
 
         Ok(Self {
             area,
@@ -324,6 +277,7 @@ impl<'a, C: Canvas> Viewport<'a, C> {
     }
 
     /// The area represented by the viewport.
+    #[must_use]
     pub fn area(&self) -> Rect {
         self.area
     }
@@ -331,12 +285,12 @@ impl<'a, C: Canvas> Viewport<'a, C> {
     /// Draw the current `Frame` to the screen. This will call the given callback allowing the caller
     /// to define render order and cursor position. `Frame` swapping and diff is handled here to
     /// ensure that only the required screen cells are updated.
-    pub fn render<S>(&mut self, state: S, root_component: impl _Component<S>) -> Result<()> {
-        use anyhow::Context;
-
-        self.canvas
-            .hide_cursor()
-            .context("unable to hide cursor pre draw")?;
+    pub fn render<S>(
+        &mut self,
+        state: S,
+        root_component: impl Component<S>,
+    ) -> Result<(), UiError> {
+        self.canvas.hide_cursor().map_err(UiError::Render)?;
 
         let props = root_component.select(state);
 
@@ -346,17 +300,19 @@ impl<'a, C: Canvas> Viewport<'a, C> {
         let mut taffy = TaffyTree::new();
         let node = element_to_node(&mut taffy, &element)?;
 
-        let frame =  &mut self.frames[self.current_frame_idx];
+        let frame = &mut self.frames[self.current_frame_idx];
 
-        taffy.compute_layout(
-            node,
-            Size {
-                width: AvailableSpace::Definite(frame.area.width as f32),
-                height: AvailableSpace::Definite(frame.area.height as f32),
-            },
-        )?;
+        taffy
+            .compute_layout(
+                node,
+                Size {
+                    width: AvailableSpace::Definite(f32::from(frame.area.width)),
+                    height: AvailableSpace::Definite(f32::from(frame.area.height)),
+                },
+            )
+            .map_err(|e| UiError::Render(IoError::new(std::io::ErrorKind::Other, e)))?;
 
-        render_element(&mut taffy, node, &element, frame);
+        render_element(&mut taffy, node, &element, frame)?;
 
         let next_cursor_pos = self.frames[self.current_frame_idx].cursor_position;
 
@@ -365,19 +321,17 @@ impl<'a, C: Canvas> Viewport<'a, C> {
 
         self.canvas
             .draw(changes.into_iter())
-            .context("unable to draw buffer diff")?;
+            .map_err(UiError::Render)?;
 
         self.canvas
             .position_cursor(next_cursor_pos.row, next_cursor_pos.col)
-            .context("unable to set cursor position for next frame render")?;
+            .map_err(UiError::Render)?;
 
-        self.canvas
-            .show_cursor()
-            .context("unable to show cursor post draw")?;
+        self.canvas.show_cursor().map_err(UiError::Render)?;
 
         self.swap_buffers();
 
-        self.canvas.flush().context("unable to flush canvas")
+        self.canvas.flush().map_err(UiError::Render)
     }
 
     fn swap_buffers(&mut self) {
@@ -386,13 +340,72 @@ impl<'a, C: Canvas> Viewport<'a, C> {
     }
 }
 
-impl<'a, G: Canvas> Drop for Viewport<'a, G> {
+impl<G: Canvas> Drop for Viewport<'_, G> {
     /// When the Viewport goes out of scope (application has ended) we want to ensure that the
     /// screen is cleared and flushed to leave the user with a clean terminal.
     fn drop(&mut self) {
-        self.canvas.clear().unwrap();
-        self.canvas.flush().unwrap();
+        // In a drop implementation, we should not panic. If the canvas operations fail,
+        // there is little we can do to recover, so we ignore the errors.
+        let _ = self.canvas.clear();
+        let _ = self.canvas.flush();
     }
+}
+
+fn element_to_node(taffy: &mut TaffyTree, element: &Element) -> Result<NodeId, TaffyError> {
+    match element {
+        Element::Span(span) => {
+            let style = Style {
+                size: Size {
+                    width: Dimension::length(span.text.len() as f32),
+                    height: Dimension::length(1.0),
+                },
+                ..Default::default()
+            };
+
+            taffy.new_leaf(style)
+        }
+        Element::Container(container) => {
+            let children = container
+                .children
+                .iter()
+                .map(|child| element_to_node(taffy, child))
+                .collect::<Result<Vec<NodeId>, _>>()?;
+
+            taffy.new_with_children(container.layout.clone(), &children)
+        }
+    }
+}
+
+fn render_element(
+    taffy: &mut TaffyTree,
+    node_id: NodeId,
+    element: &Element,
+    frame: &mut Frame,
+) -> Result<(), UiError> {
+    let layout = taffy
+        .layout(node_id)
+        .map_err(|e| UiError::Render(IoError::new(std::io::ErrorKind::Other, e)))?;  // TODO: can we shorted these errors, this seems really verbose and I don't know why.
+    let position = Position {
+        col: layout.location.x as u16,
+        row: layout.location.y as u16,
+    };
+
+    match element {
+        Element::Span(span) => {
+            frame
+                .write(position, &span.text, span.color, span.background)
+                .map_err(|e| UiError::Render(IoError::new(std::io::ErrorKind::Other, e)))?;
+        }
+        Element::Container(container) => {
+            let children = taffy.children(node_id).unwrap(); // Should not fail if layout is valid
+
+            for (i, child) in container.children.iter().enumerate() {
+                let child_node = children[i];
+                render_element(taffy, child_node, child, frame)?;
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

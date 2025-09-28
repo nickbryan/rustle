@@ -417,7 +417,6 @@ dependencies = [
 name = "rustle_core"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "taffy",
  "thiserror",

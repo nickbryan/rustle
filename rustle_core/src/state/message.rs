@@ -41,7 +41,7 @@ where
     S: Selector<State>,
 {
     selector: S,
-    _types: PhantomData<State>,
+    _types: PhantomData<State>, // TODO: why is this needed?
 }
 
 impl<State, S> Select<State, S>
@@ -52,7 +52,7 @@ where
     pub fn new(selector: S) -> Self {
         Select {
             selector,
-            _types: Default::default(),
+            _types: PhantomData::default(),
         }
     }
 

@@ -90,11 +90,11 @@ where
     async fn deliver(&mut self, message: Dispatch<A>) {
         let action = message.into_action();
 
-        let old_state = self.state.take().unwrap();
+        let old_state = self.state.take().expect("State should always be Some");
         let new_state = self.root_reducer.reduce(old_state, action);
 
         self.state = Some(new_state.clone());
-        let _ = self.notifier.send(new_state);
+        let _ = self.notifier.send(new_state); // TODO: handle result and error.
     }
 }
 
@@ -110,7 +110,7 @@ where
     /// Handles a `Select` message.
     /// This will run a selector on the current state and return the result.
     async fn deliver(&mut self, message: Select<S, Sel>) -> Result {
-        let state = self.state.as_ref().unwrap();
+        let state = self.state.as_ref().expect("State should always be Some");
         let selector = message.into_selector();
         selector.select(state)
     }
