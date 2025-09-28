@@ -5,6 +5,8 @@
 
 mod state;
 mod editor;
-mod ui;
+pub mod ui;
+mod input;
 
 pub use editor::Editor;
+pub use input::{Event, EventStream, Key};

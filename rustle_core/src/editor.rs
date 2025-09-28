@@ -1,3 +1,6 @@
+use std::ops::Add;
+use tokio_stream::StreamExt;
+use crate::input::{Event, EventStream, Key};
 use crate::state::Store;
 
 /// The `Editor` struct represents the main component of the text editor application.
@@ -15,7 +18,10 @@ impl Editor {
     /// Creates a new editor.
     pub fn new() -> Self {
         let editor = Self {
-            state: Store::new(root_reducer),
+            state: Store::new_with_state(root_reducer, State {
+                content: "".to_string(),
+                should_quit: false,
+            }),
         };
 
         editor.state.subscribe(move |state| {
@@ -24,11 +30,49 @@ impl Editor {
 
         editor
     }
+
+    /// Consume the given `EventStream` to run/drive the Editor.
+    ///
+    /// # Errors
+    /// Will return `Err` when a message was received on the `err_tx`.
+    ///
+    /// # Panics
+    /// When the command channels are closed unexpectedly.
+    pub async fn consume(&mut self, mut event_stream: EventStream) -> Result<(), ()> {
+        while !self.state.select(|state: &State| state.should_quit).await {
+            tokio::select! {
+                Some(event) = event_stream.next() => {
+                    match event {
+                        Event::KeyPressed(Key::Char(c)) => {
+                            self.state.dispatch(Action::InsertChar(c)).await;
+                        }
+                        Event::ReadFailed(e) => {
+                            return Err(())
+                        }
+                        _ => (),
+                    }
+                }
+                else => return Err(()),
+            }
+        }
+
+        Ok(())
+    }
 }
 
 /// The `root_reducer` is the main reducer for the editor.
 /// It is responsible for handling all actions and updating the state.
-fn root_reducer(state: State, action: Action) -> State {
+fn root_reducer(mut state: State, action: Action) -> State {
+    match action {
+        Action::InsertChar('q') => {
+            state.should_quit = true;
+        },
+        Action::InsertChar(c) => {
+            state.content = state.content.add(c.to_string().as_str());
+        }
+        _ => ()
+    }
+
     state
 }
 
@@ -36,6 +80,7 @@ fn root_reducer(state: State, action: Action) -> State {
 #[derive(Default, Clone, Debug, PartialEq)]
 struct State{
     content: String,
+    should_quit: bool,
 }
 
 /// The `Action` enum represents the actions that can be dispatched to the store.
