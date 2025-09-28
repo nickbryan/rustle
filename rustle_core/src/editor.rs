@@ -14,23 +14,18 @@ pub struct Editor {
     state: Store<fn(State, Action) -> State, State, Action>,
 }
 
-impl Editor {
-    /// Creates a new editor.
-    pub fn new() -> Self {
-        let editor = Self {
-            state: Store::new_with_state(root_reducer, State {
+impl Default for Editor {
+    fn default() -> Self {
+        Self {
+            state: Store::new(root_reducer, State {
                 content: "".to_string(),
                 should_quit: false,
             }),
-        };
-
-        editor.state.subscribe(move |state| {
-            println!("State update: {:?}", state);
-        });
-
-        editor
+        }
     }
+}
 
+impl Editor {
     /// Consume the given `EventStream` to run/drive the Editor.
     ///
     /// # Errors
@@ -39,6 +34,10 @@ impl Editor {
     /// # Panics
     /// When the command channels are closed unexpectedly.
     pub async fn consume(&mut self, mut event_stream: EventStream) -> Result<(), ()> {
+        self.state.subscribe(move |state| {
+            println!("State update: {:?}", state);
+        });
+
         while !self.state.select(|state: &State| state.should_quit).await {
             tokio::select! {
                 Some(event) = event_stream.next() => {
@@ -46,7 +45,7 @@ impl Editor {
                         Event::KeyPressed(Key::Char(c)) => {
                             self.state.dispatch(Action::InsertChar(c)).await;
                         }
-                        Event::ReadFailed(e) => {
+                        Event::ReadFailed(_) => {
                             return Err(())
                         }
                         _ => (),
@@ -70,7 +69,6 @@ fn root_reducer(mut state: State, action: Action) -> State {
         Action::InsertChar(c) => {
             state.content = state.content.add(c.to_string().as_str());
         }
-        _ => ()
     }
 
     state

@@ -34,21 +34,13 @@ where
     A: Send + 'static,
     R: Reducer<S, A> + Send + 'static,
 {
-    /// Creates a new store with a default initial state.
-    pub fn new(root_reducer: R) -> Self
-    where
-        S: Default
-    {
-        Self::new_with_state(root_reducer, Default::default())
-    }
-
-    /// Creates a new store with a given initial state.
-    pub fn new_with_state(root_reducer: R, state: S) -> Self {
+    /// Creates a new store with a given initial state and root reducer.
+    pub fn new(root_reducer: R, state: S) -> Self {
         let mut actor = Actor::new(root_reducer, state);
         let mailbox = actor.mailbox();
         let subscription = actor.notifier().subscribe();
 
-        let _ = tokio::spawn(async move {
+        tokio::spawn(async move {
             actor.act().await;
         });
 
@@ -67,7 +59,7 @@ where
 
     /// Selects a value from the state using a selector.
     /// Selectors are used to derive data from the state.
-    pub async fn select<Sel: Selector<S, Result = Res>, Res>(&self, selector: Sel) -> Res
+    pub async fn select<Sel, Res>(&self, selector: Sel) -> Res
     where
         Sel: Selector<S, Result = Res> + Send + 'static,
         Res: Send + 'static,

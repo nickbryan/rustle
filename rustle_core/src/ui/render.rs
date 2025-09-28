@@ -1,1 +1,1 @@
-struct Renderer;
+struct _Renderer;

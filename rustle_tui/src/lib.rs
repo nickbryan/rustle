@@ -9,7 +9,7 @@ use crossterm::{
 };
 
 use rustle_core::{
-    ui::values::{Color as RustleColor, Rect},
+    ui::values::Color as RustleColor,
     Event, EventStream, Key as CoreKey,
 };
 

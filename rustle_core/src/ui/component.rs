@@ -1,4 +1,4 @@
-pub trait Component {
+pub trait _Component {
     type Props;
 
 
