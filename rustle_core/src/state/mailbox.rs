@@ -1,4 +1,3 @@
-
 use async_trait::async_trait;
 use tokio::{ 
     sync::{ 
@@ -50,7 +49,13 @@ where
     /// Assigns the message to the handler. The handler will send the response back to the sender.
     async fn assign(self: Box<Self>, courier: &mut A) {
         let reply = courier.deliver(self.message).await;
-        let _ = self.sender.send(reply);  // TODO: handle result and error.
+
+        // The send operation fails if the receiver has been dropped. In an actor
+        // system, this means the original requester is no longer listening for a
+        // reply. This is a valid scenario (e.g., a UI component unmounting) and
+        // not an error that the Mailbox needs to handle. The requester will
+        // handle the timeout on its end. Therefore, we ignore the result.
+        let _ = self.sender.send(reply);
     }
 }
 

@@ -94,7 +94,9 @@ where
         let new_state = self.root_reducer.reduce(old_state, action);
 
         self.state = Some(new_state.clone());
-        let _ = self.notifier.send(new_state); // TODO: handle result and error.
+
+        // Ignore the error as it just means there are no active subscribers.
+        let _ = self.notifier.send(new_state);
     }
 }
 

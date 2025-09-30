@@ -50,18 +50,18 @@ where
     /// Dispatches an action to the store.
     /// The action will be processed by the reducer, which will update the state.
     /// This is the only way to trigger a state change.
-    pub async fn dispatch(&self, action: A) {
-        self.mailbox.send(Dispatch::new(action)).await.unwrap();  // TODO: handle result and error.
+    pub async fn dispatch(&self, action: A) -> Result<(), super::error::StateError> {
+        self.mailbox.send(Dispatch::new(action)).await
     }
 
     /// Selects a value from the state using a selector.
     /// Selectors are used to derive data from the state.
-    pub async fn select<Sel, Res>(&self, selector: Sel) -> Res
+    pub async fn select<Sel, Res>(&self, selector: Sel) -> Result<Res, super::error::StateError>
     where
         Sel: Selector<S, Result = Res> + Send + 'static,
         Res: Send + 'static,
     {
-        self.mailbox.send(Select::new(selector)).await.unwrap()  // TODO: handle result and error.
+        self.mailbox.send(Select::new(selector)).await
     }
 
     pub fn subscribe(&self) -> watch::Receiver<S> {

@@ -42,12 +42,12 @@ impl<C: Canvas + Send + Sync> Editor<C> {
 
         let mut state_rx = self.state.subscribe();
 
-        while !self.state.select(|state: &State| state.should_quit).await {
+        while !self.state.select(|state: &State| state.should_quit).await? {
             tokio::select! {
                 Some(event) = event_stream.next() => {
                     match event {
                         Event::KeyPressed(Key::Char(c)) => {
-                            self.state.dispatch(Action::InsertChar(c)).await;
+                            self.state.dispatch(Action::InsertChar(c)).await?;
                         }
                         Event::ReadFailed(e) => {
                             return Err(CoreError::Input(e.to_string()));
@@ -104,7 +104,14 @@ impl Component<&State> for RootComponent {
     type Props = RootComponentProps;
 
     fn select(&self, state: &State) -> Self::Props {
-        RootComponentProps{content: state.content.clone() } // TODO: can we get rid of this clone?
+        // The `content` string is cloned here. While this is not ideal for performance,
+        // it is a necessary trade-off for the current architecture. The rendering engine
+        // (`TextSpan`, `render_element`, etc.) is designed to work with owned `String`s
+        // for simplicity. Removing this clone would require a significant architectural
+        // refactoring to use string slices (`&str`) and lifetimes throughout the UI
+        // rendering code. This is a potential future optimization if performance becomes
+        // a bottleneck.
+        RootComponentProps { content: state.content.clone() }
     }
 
     fn render(&self, props: Self::Props) -> Element {

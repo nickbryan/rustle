@@ -32,7 +32,7 @@ impl<A: Send> Message for Dispatch<A> {
 }
 
 /// A `Select` message is used to query the state and retrieve derived data.
-/// It wraps a selector function that is executed by the actor on the current state.
+/// It wraps a selector function executed by the actor on the current state.
 ///
 /// This message provides a safe and controlled way to access the state, ensuring that
 /// the state itself is never directly exposed or modified by the querier.
@@ -41,7 +41,12 @@ where
     S: Selector<State>,
 {
     selector: S,
-    _types: PhantomData<State>, // TODO: why is this needed?
+
+    // `PhantomData` is used here to inform the compiler that `State` is a
+    // used type parameter, even though it doesn't appear in any of the struct's
+    // fields. This is necessary for type checking and inference, especially
+    // with the `S: Selector<State>` trait bound.
+    _types: PhantomData<State>,
 }
 
 impl<State, S> Select<State, S>

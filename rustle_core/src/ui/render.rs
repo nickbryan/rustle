@@ -9,46 +9,38 @@ use unicode_width::UnicodeWidthStr;
 
 /// Canvas is an interface to the ui. It could be the terminal or web ui.
 pub trait Canvas {
-    /// Clear the ui.
-    ///
     /// # Errors
-    /// TODO...
+    /// Returns an `IoError` if the underlying I/O operation to clear the UI fails.
     fn clear(&mut self) -> Result<(), IoError>;
 
     /// Draw the given cells in the ui's current buffer.
     ///
     /// # Errors
-    /// TODO...
+    /// Returns an `IoError` if the underlying I/O operation to draw the cells fails.
     fn draw<'a, I: Iterator<Item = &'a Cell>>(&mut self, cells: I) -> Result<(), IoError>;
 
-    /// Flush the ui's current buffer.
-    ///
     /// # Errors
-    /// TODO...
+    /// Returns an `IoError` if the underlying I/O operation to flush the UI fails.
     fn flush(&mut self) -> Result<(), IoError>;
 
-    /// Hide the cursor.
-    ///
     /// # Errors
-    /// TODO...
+    /// Returns an `IoError` if the underlying I/O operation to hide the cursor fails.
     fn hide_cursor(&mut self) -> Result<(), IoError>;
 
     /// Position the cursor at the given row and column.
     ///
     /// # Errors
-    /// TODO...
+    /// Returns an `IoError` if the underlying I/O operation to position the cursor fails.
     fn position_cursor(&mut self, row: u16, col: u16) -> Result<(), IoError>;
 
-    /// Show the cursor.
-    ///
     /// # Errors
-    /// TODO...
+    /// Returns an `IoError` if the underlying I/O operation to show the cursor fails.
     fn show_cursor(&mut self) -> Result<(), IoError>;
 
     /// Get the size of the ui.
     ///
     /// # Errors
-    /// TODO...
+    /// Returns an `IoError` if the underlying I/O operation to get the UI size fails.
     fn size(&self) -> Result<Rect, IoError>;
 }
 
@@ -154,7 +146,7 @@ impl Frame {
 
     /// Diff the current `Frame` with the other `Frame` to get a list of changed `Cell`s.
     fn diff<'a>(&self, other: &'a Frame) -> Vec<&'a Cell> {
-        // TODO: assert frames are equal size
+                debug_assert_eq!(self.area, other.area, "Frames must be of equal size to diff");
         let front_buffer = &self.cells;
         let back_buffer = &other.cells;
 
@@ -196,8 +188,7 @@ impl Frame {
     ) -> Result<(), OutOfBoundsError> {
         let str_start = self.index_of(position)?;
         let mut cursor = str_start;
-
-        // TODO: do we want to cap the line length here? If the line is longer than the width do we truncate?
+        
         for grapheme in string[..]
             .graphemes(true)
             .take((self.area.width - position.col).into())
@@ -283,7 +274,7 @@ impl<'a, C: Canvas> Viewport<'a, C> {
     }
 
     /// Draw the current `Frame` to the screen. This will call the given callback allowing the caller
-    /// to define render order and cursor position. `Frame` swapping and diff is handled here to
+    /// to define render order and cursor position. `Frame` swapping and diff are handled here to
     /// ensure that only the required screen cells are updated.
     pub fn render<S>(
         &mut self,
@@ -310,7 +301,7 @@ impl<'a, C: Canvas> Viewport<'a, C> {
                     height: AvailableSpace::Definite(f32::from(frame.area.height)),
                 },
             )
-            .map_err(|e| UiError::Render(IoError::new(std::io::ErrorKind::Other, e)))?;
+            ?;
 
         render_element(&mut taffy, node, &element, frame)?;
 
@@ -382,9 +373,7 @@ fn render_element(
     element: &Element,
     frame: &mut Frame,
 ) -> Result<(), UiError> {
-    let layout = taffy
-        .layout(node_id)
-        .map_err(|e| UiError::Render(IoError::new(std::io::ErrorKind::Other, e)))?;  // TODO: can we shorted these errors, this seems really verbose and I don't know why.
+    let layout = taffy.layout(node_id)?;
     let position = Position {
         col: layout.location.x as u16,
         row: layout.location.y as u16,
