@@ -16,7 +16,10 @@ pub trait Selector<State> {
 }
 
 /// Allow a function to be used as a selector if the function's signature matches.
-impl<F, State, Result> Selector<State> for F where F: Fn(&State) -> Result {
+impl<F, State, Result> Selector<State> for F
+where
+    F: Fn(&State) -> Result,
+{
     type Result = Result;
 
     fn select(&self, state: &State) -> Self::Result {

@@ -119,8 +119,6 @@ impl Rect {
 #[cfg(test)]
 mod tests {
     use taffy::geometry::Point;
-    use taffy::Layout;
-    use taffy::prelude::Size;
 
     use super::*;
 

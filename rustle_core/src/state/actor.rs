@@ -1,17 +1,11 @@
-use async_trait::async_trait;
-use crate::{ 
-    state::{
-        mailbox::Address,
-        mailbox::Mailbox,
-        reducer::Reducer,
-        mailbox::Deliver,
-        message::Dispatch,
-        message::Select
-    }
+use crate::state::{
+    mailbox::Address, mailbox::Deliver, mailbox::Mailbox, message::Dispatch, message::Select,
+    reducer::Reducer,
 };
+use async_trait::async_trait;
 
-use tokio::sync::watch;
 use crate::state::selector::Selector;
+use tokio::sync::watch;
 
 /// The `Actor` is the core of the state management system, acting as the central
 /// processing unit. It runs in a separate, dedicated task and is responsible for
@@ -40,7 +34,7 @@ where
     notifier: watch::Sender<S>,
 }
 
-impl <R, S, A> Actor<R, S, A>
+impl<R, S, A> Actor<R, S, A>
 where
     S: Send + Clone + Sync,
     R: Reducer<S, A> + Send,
@@ -73,13 +67,12 @@ where
     pub async fn act(&mut self) {
         while let Some(assignment) = self.mailbox.recv().await {
             assignment.assign(self).await;
-
         }
     }
 }
 
 #[async_trait]
-impl <R, S, A> Deliver<Dispatch<A>> for Actor<R, S, A>
+impl<R, S, A> Deliver<Dispatch<A>> for Actor<R, S, A>
 where
     R: Reducer<S, A> + Send,
     S: Send + Clone + Sync,

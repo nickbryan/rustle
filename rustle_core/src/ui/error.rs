@@ -1,5 +1,5 @@
-use thiserror::Error;
 use taffy::TaffyError;
+use thiserror::Error;
 
 /// Represents errors originating from the UI, such as rendering or viewport setup.
 #[derive(Error, Debug)]

@@ -1,12 +1,10 @@
-use async_trait::async_trait;
-use tokio::{ 
-    sync::{ 
-        mpsc::{self, UnboundedReceiver, UnboundedSender},
-        oneshot::{self, Sender},
-    }
-};
 use crate::state::actor::Actor;
 use crate::state::error::StateError;
+use async_trait::async_trait;
+use tokio::sync::{
+    mpsc::{self, UnboundedReceiver, UnboundedSender},
+    oneshot::{self, Sender},
+};
 
 /// A message that can be sent to an actor.
 /// This is a trait that all messages must implement.
@@ -18,7 +16,7 @@ pub trait Message: Send {
 /// An envelope is a wrapper around a message that includes a sender for the response.
 struct Envelope<M: Message> {
     message: M,
-    sender: Sender<M::Response>
+    sender: Sender<M::Response>,
 }
 
 impl<M: Message> Envelope<M> {
@@ -111,10 +109,12 @@ impl<R: Send, S: Send + Clone + Sync, A> Address<R, S, A> {
     /// Send a message to the `Mailbox`.
     pub async fn send<M: Message + 'static>(&self, message: M) -> Result<M::Response, StateError>
     where
-        Actor<R, S, A>: Deliver<M>
+        Actor<R, S, A>: Deliver<M>,
     {
         let (tx, rx) = oneshot::channel();
-        self.tx.send(Box::new(Envelope::new(message, tx))).map_err(|_| StateError::ActorTerminated)?;
+        self.tx
+            .send(Box::new(Envelope::new(message, tx)))
+            .map_err(|_| StateError::ActorTerminated)?;
         rx.await.map_err(|_| StateError::ActorTerminated)
     }
 }

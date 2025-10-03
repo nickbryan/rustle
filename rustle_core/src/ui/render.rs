@@ -1,8 +1,8 @@
+use crate::ui::UiError;
 use crate::ui::component::{Component, Element};
 use crate::ui::values::{Color, Position, Rect};
-use crate::ui::UiError;
 use std::io::Error as IoError;
-use taffy::{TaffyTree, TaffyError, NodeId, Style, Size, Dimension, AvailableSpace};
+use taffy::{AvailableSpace, Dimension, NodeId, Size, Style, TaffyError, TaffyTree};
 use thiserror::Error;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
@@ -146,7 +146,10 @@ impl Frame {
 
     /// Diff the current `Frame` with the other `Frame` to get a list of changed `Cell`s.
     fn diff<'a>(&self, other: &'a Frame) -> Vec<&'a Cell> {
-                debug_assert_eq!(self.area, other.area, "Frames must be of equal size to diff");
+        debug_assert_eq!(
+            self.area, other.area,
+            "Frames must be of equal size to diff"
+        );
         let front_buffer = &self.cells;
         let back_buffer = &other.cells;
 
@@ -179,6 +182,10 @@ impl Frame {
 
     /// Write a string into the `Frame`. This will overwrite any Cells currently set in the `Frame`'s
     /// given line. If the string does not fill the line it, the rest of the line will be cleared.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `OutOfBoundsError` if the `position` is outside the bounds of the frame.
     pub fn write(
         &mut self,
         position: Position,
@@ -188,7 +195,7 @@ impl Frame {
     ) -> Result<(), OutOfBoundsError> {
         let str_start = self.index_of(position)?;
         let mut cursor = str_start;
-        
+
         for grapheme in string[..]
             .graphemes(true)
             .take((self.area.width - position.col).into())
@@ -256,6 +263,10 @@ pub struct Viewport<'a, C: Canvas> {
 
 impl<'a, C: Canvas> Viewport<'a, C> {
     /// Create a new Viewport for the provided Canvas.
+    ///
+    /// # Errors
+    ///
+    /// This function will return a `UiError::ViewportInitialization` if the `Canvas` fails to provide its size.
     pub fn new(canvas: &'a mut C) -> Result<Self, UiError> {
         let area = canvas.size().map_err(UiError::ViewportInitialization)?;
 
@@ -276,10 +287,17 @@ impl<'a, C: Canvas> Viewport<'a, C> {
     /// Draw the current `Frame` to the screen. This will call the given callback allowing the caller
     /// to define render order and cursor position. `Frame` swapping and diff are handled here to
     /// ensure that only the required screen cells are updated.
+    ///
+    /// # Errors
+    ///
+    /// This function will return a `UiError` if rendering fails. Possible error variants include:
+    ///
+    /// - `UiError::Render`: If there is an I/O error when interacting with the `Canvas`.
+    /// - `UiError::Layout`: If the layout computation fails.
     pub fn render<S>(
         &mut self,
         state: S,
-        root_component: impl Component<S>,
+        root_component: &impl Component<S>,
     ) -> Result<(), UiError> {
         self.canvas.hide_cursor().map_err(UiError::Render)?;
 
@@ -293,15 +311,13 @@ impl<'a, C: Canvas> Viewport<'a, C> {
 
         let frame = &mut self.frames[self.current_frame_idx];
 
-        taffy
-            .compute_layout(
-                node,
-                Size {
-                    width: AvailableSpace::Definite(f32::from(frame.area.width)),
-                    height: AvailableSpace::Definite(f32::from(frame.area.height)),
-                },
-            )
-            ?;
+        taffy.compute_layout(
+            node,
+            Size {
+                width: AvailableSpace::Definite(f32::from(frame.area.width)),
+                height: AvailableSpace::Definite(f32::from(frame.area.height)),
+            },
+        )?;
 
         render_element(&mut taffy, node, &element, frame)?;
 
@@ -345,6 +361,10 @@ impl<G: Canvas> Drop for Viewport<'_, G> {
 fn element_to_node(taffy: &mut TaffyTree, element: &Element) -> Result<NodeId, TaffyError> {
     match element {
         Element::Span(span) => {
+            // The `cast_precision_loss` lint is allowed here because the precision loss from
+            // converting the text length to `f32` is not critical for the layout calculation
+            // in this context.
+            #[allow(clippy::cast_precision_loss)]
             let style = Style {
                 size: Size {
                     width: Dimension::length(span.text.len() as f32),
@@ -374,6 +394,10 @@ fn render_element(
     frame: &mut Frame,
 ) -> Result<(), UiError> {
     let layout = taffy.layout(node_id)?;
+    // The `cast_possible_truncation` and `cast_sign_loss` lints are allowed here because
+    // the layout coordinates are expected to be within the valid range of `u16` and non-negative,
+    // so the truncation and sign loss are not a concern.
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let position = Position {
         col: layout.location.x as u16,
         row: layout.location.y as u16,
@@ -383,7 +407,7 @@ fn render_element(
         Element::Span(span) => {
             frame
                 .write(position, &span.text, span.color, span.background)
-                .map_err(|e| UiError::Render(IoError::new(std::io::ErrorKind::Other, e)))?;
+                .map_err(|e| UiError::Render(IoError::other(e)))?;
         }
         Element::Container(container) => {
             let children = taffy.children(node_id).unwrap(); // Should not fail if layout is valid
@@ -438,7 +462,7 @@ mod tests {
         let mut dirty = Frame::empty(Rect::new(10, 10));
         let clean = Frame::empty(Rect::new(10, 10));
 
-        dirty.write(Position::new(0, 0), "hello", Color::DarkGray, Color::White);
+        let _ = dirty.write(Position::new(0, 0), "hello", Color::DarkGray, Color::White);
         assert_eq!(
             vec![
                 &Cell {
@@ -481,7 +505,7 @@ mod tests {
         let mut dirty = Frame::empty(Rect::new(10, 10));
         let clean = Frame::empty(Rect::new(10, 10));
 
-        dirty.write(Position::new(0, 0), "hello", Color::DarkGray, Color::White);
+        let _ = dirty.write(Position::new(0, 0), "hello", Color::DarkGray, Color::White);
         dirty.reset();
 
         assert_eq!(

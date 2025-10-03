@@ -1,5 +1,5 @@
 use crate::input::{Event, EventStream, Key};
-use crate::state::{Store, StateError};
+use crate::state::{StateError, Store};
 use crate::ui::component::{Component, Container, Element, TextSpan};
 use crate::ui::render::{Canvas, Viewport};
 use crate::ui::values::Color;
@@ -27,7 +27,7 @@ impl<C: Canvas + Send + Sync> Editor<C> {
             state: Store::new(
                 root_reducer,
                 State {
-                    content: "".to_string(),
+                    content: String::new(),
                     should_quit: false,
                 },
             ),
@@ -36,9 +36,17 @@ impl<C: Canvas + Send + Sync> Editor<C> {
     }
 
     /// Consume the given `EventStream` to run/drive the Editor.
+    ///
+    /// # Errors
+    ///
+    /// This function will return a `CoreError` if an unrecoverable error occurs.
+    /// Possible error variants include:
+    ///
+    /// - `CoreError::Input`: If there is a failure reading from the event stream.
+    /// - `CoreError::Ui`: If there is an error related to rendering the user interface.
+    /// - `CoreError::State`: If a critical state management error occurs, such as the actor terminating unexpectedly.
     pub async fn consume(&mut self, mut event_stream: EventStream) -> Result<(), CoreError> {
-        let mut viewport =
-            Viewport::new(&mut self.canvas).map_err(|e| CoreError::Ui(e))?;
+        let mut viewport = Viewport::new(&mut self.canvas).map_err(CoreError::Ui)?;
 
         let mut state_rx = self.state.subscribe();
 
@@ -55,9 +63,9 @@ impl<C: Canvas + Send + Sync> Editor<C> {
                         _ => (),
                     }
                 }
-                Ok(_) = state_rx.changed() => {
-                    viewport.render(state_rx.borrow().deref(), RootComponent)
-                        .map_err(|e|CoreError::Ui(e))?;
+                Ok(()) = state_rx.changed() => {
+                    viewport.render(state_rx.borrow().deref(), &RootComponent)
+                        .map_err(CoreError::Ui)?;
                 }
                 else => return Err(StateError::ActorTerminated.into()),
             }
@@ -69,11 +77,18 @@ impl<C: Canvas + Send + Sync> Editor<C> {
 
 /// The `root_reducer` is the main reducer for the editor.
 /// It is responsible for handling all actions and updating the state.
+// The `needless_pass_by_value` lint is allowed here because the function signature is constrained
+// by the `Reducer` trait, which requires the `action` to be passed by value. This is a deliberate
+// design choice that simplifies ownership and is efficient for small, `Copy`-like actions.
+// Since our `Action` enum holds a `char`, which is a 4-byte primitive, the performance cost
+// of passing by value is negligible. For a more detailed rationale, see the comments in
+// the `Reducer` trait definition.
+#[allow(clippy::needless_pass_by_value)]
 fn root_reducer(mut state: State, action: Action) -> State {
     match action {
         Action::InsertChar('q') => {
             state.should_quit = true;
-        },
+        }
         Action::InsertChar(c) => {
             state.content.push(c);
         }
@@ -84,7 +99,7 @@ fn root_reducer(mut state: State, action: Action) -> State {
 
 /// The `State` struct represents the state of the editor.
 #[derive(Default, Clone, Debug, PartialEq)]
-struct State{
+struct State {
     content: String,
     should_quit: bool,
 }
@@ -111,22 +126,22 @@ impl Component<&State> for RootComponent {
         // refactoring to use string slices (`&str`) and lifetimes throughout the UI
         // rendering code. This is a potential future optimization if performance becomes
         // a bottleneck.
-        RootComponentProps { content: state.content.clone() }
+        RootComponentProps {
+            content: state.content.clone(),
+        }
     }
 
     fn render(&self, props: Self::Props) -> Element {
-        Element::Container(Container {
-            layout: Style{
+        Element::Container(Box::new(Container {
+            layout: Style {
                 padding: Rect::length(2.0),
                 ..Default::default()
             },
-            children: vec![
-                Element::Span(TextSpan {
-                    background: Color::DarkGray,
-                    color: Color::Yellow,
-                    text: props.content,
-                })
-            ],
-        })
+            children: vec![Element::Span(TextSpan {
+                background: Color::DarkGray,
+                color: Color::Yellow,
+                text: props.content,
+            })],
+        }))
     }
 }

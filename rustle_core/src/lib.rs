@@ -5,10 +5,10 @@
 
 #![warn(clippy::all, clippy::pedantic)]
 
-mod state;
 pub mod editor;
-pub mod ui;
 mod input;
+mod state;
+pub mod ui;
 
 pub mod error;
 pub use error::CoreError;

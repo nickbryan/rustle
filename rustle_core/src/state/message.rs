@@ -1,10 +1,5 @@
+use crate::state::{mailbox::Message, selector::Selector};
 use std::marker::PhantomData;
-use crate::{ 
-    state::{ 
-        mailbox::Message,
-        selector::Selector
-    }
-};
 
 /// A `Dispatch` message is a wrapper around an action that is sent to the store to
 /// trigger a state change. It is the sole mechanism for initiating state mutations.
@@ -57,7 +52,7 @@ where
     pub fn new(selector: S) -> Self {
         Select {
             selector,
-            _types: PhantomData::default(),
+            _types: PhantomData,
         }
     }
 

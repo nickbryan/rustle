@@ -1,11 +1,9 @@
-use crate::{
-    state::{
-        actor::Actor,
-        mailbox::Address,
-        message::{Dispatch, Select},
-        reducer::Reducer,
-        selector::Selector,
-    },
+use crate::state::{
+    actor::Actor,
+    mailbox::Address,
+    message::{Dispatch, Select},
+    reducer::Reducer,
+    selector::Selector,
 };
 use tokio::sync::watch;
 
