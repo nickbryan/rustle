@@ -1,9 +1,10 @@
-use crate::state::{actor::Actor, error::StateError};
 use async_trait::async_trait;
 use tokio::sync::{
     mpsc::{self, UnboundedReceiver, UnboundedSender},
     oneshot::{self, Sender},
 };
+
+use crate::state::{actor::Actor, error::StateError};
 
 /// A message that can be sent to an actor.
 /// This is a trait that all messages must implement.

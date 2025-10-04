@@ -11,7 +11,6 @@ mod state;
 pub mod ui;
 
 pub mod error;
-pub use error::CoreError;
-
 pub use editor::Editor;
+pub use error::CoreError;
 pub use input::{Event, EventStream, Key};

@@ -1,14 +1,18 @@
 #![warn(clippy::all, clippy::pedantic)]
 
-use anyhow::{Context, Error};
-use backtrace::Backtrace;
-use crossterm::{style::Print, terminal::LeaveAlternateScreen};
-use rustle_core::Editor;
-use rustle_tui::CrosstermCanvas;
 use std::{
     io,
     panic::{self, PanicHookInfo},
 };
+
+use anyhow::{Context, Error};
+use backtrace::Backtrace;
+use crossterm::{style::Print, terminal::LeaveAlternateScreen};
+use rustle_core::Editor;
+
+use crate::backend::CrosstermCanvas;
+
+mod backend;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -23,7 +27,7 @@ async fn main() -> Result<(), Error> {
     tokio::spawn(async move { actor.act().await });
 
     editor
-        .consume(rustle_tui::map_crossterm_event_stream())
+        .consume(backend::map_crossterm_event_stream())
         .await?;
 
     Ok(())

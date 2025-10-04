@@ -1,3 +1,5 @@
+use std::io::{Error as IoError, Write};
+
 use anyhow::Result;
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
@@ -12,7 +14,6 @@ use rustle_core::{
     },
     Event, EventStream, Key as CoreKey,
 };
-use std::io::{Error as IoError, Write};
 
 /// Newtype to allow mapping RustleColor to CrosstermColor.
 struct Color(RustleColor);

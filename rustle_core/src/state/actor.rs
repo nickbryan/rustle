@@ -1,11 +1,12 @@
+use async_trait::async_trait;
+use tokio::sync::watch;
+
 use crate::state::{
     mailbox::{Address, Deliver, Mailbox},
     message::{Dispatch, Select},
     reducer::Reducer,
     selector::Selector,
 };
-use async_trait::async_trait;
-use tokio::sync::watch;
 
 /// The `Actor` is the core of the state management system, acting as the central
 /// processing unit. It runs in a separate, dedicated task and is responsible for

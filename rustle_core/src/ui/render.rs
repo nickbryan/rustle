@@ -1,13 +1,15 @@
+use std::io::Error as IoError;
+
+use taffy::{AvailableSpace, Dimension, NodeId, Size, Style, TaffyError, TaffyTree};
+use thiserror::Error;
+use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
+
 use crate::ui::{
     component::{Component, Element},
     values::{Color, Position, Rect},
     UiError,
 };
-use std::io::Error as IoError;
-use taffy::{AvailableSpace, Dimension, NodeId, Size, Style, TaffyError, TaffyTree};
-use thiserror::Error;
-use unicode_segmentation::UnicodeSegmentation;
-use unicode_width::UnicodeWidthStr;
 
 /// Canvas is an interface to the ui. It could be the terminal or web ui.
 pub trait Canvas {

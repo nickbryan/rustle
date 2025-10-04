@@ -1,3 +1,8 @@
+use std::ops::Deref;
+
+use taffy::{Rect, Style};
+use tokio_stream::StreamExt;
+
 use crate::{
     input::{Event, EventStream, Key},
     state::{Actor, StateError, Store},
@@ -6,12 +11,8 @@ use crate::{
         render::{Canvas, Viewport},
         values::Color,
     },
+    CoreError,
 };
-
-use crate::CoreError;
-use std::ops::Deref;
-use taffy::{Rect, Style};
-use tokio_stream::StreamExt;
 
 /// The `Editor` struct represents the main component of the text editor application.
 /// It encapsulates the entire state of the editor and provides the primary interface

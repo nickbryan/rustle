@@ -1,3 +1,5 @@
+use tokio::sync::watch;
+
 use crate::state::{
     actor::Actor,
     mailbox::Address,
@@ -5,7 +7,6 @@ use crate::state::{
     reducer::Reducer,
     selector::Selector,
 };
-use tokio::sync::watch;
 
 /// The `Store` is the primary interface for interacting with the application state.
 /// It provides a simple and consistent way to manage state in a concurrent environment.
