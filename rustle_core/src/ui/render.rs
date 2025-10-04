@@ -1,6 +1,8 @@
-use crate::ui::UiError;
-use crate::ui::component::{Component, Element};
-use crate::ui::values::{Color, Position, Rect};
+use crate::{
+    ui::UiError,
+    ui::component::{Component, Element},
+    ui::values::{Color, Position, Rect},
+};
 use std::io::Error as IoError;
 use taffy::{AvailableSpace, Dimension, NodeId, Size, Style, TaffyError, TaffyTree};
 use thiserror::Error;

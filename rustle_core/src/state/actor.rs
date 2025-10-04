@@ -1,10 +1,10 @@
 use crate::state::{
-    mailbox::Address, mailbox::Deliver, mailbox::Mailbox, message::Dispatch, message::Select,
+    mailbox::{Address, Deliver, Mailbox},
+    message::{Dispatch, Select},
     reducer::Reducer,
+    selector::Selector,
 };
 use async_trait::async_trait;
-
-use crate::state::selector::Selector;
 use tokio::sync::watch;
 
 /// The `Actor` is the core of the state management system, acting as the central
@@ -40,7 +40,7 @@ where
     R: Reducer<S, A> + Send,
 {
     /// Creates a new actor with a given reducer and initial state.
-    pub fn new(root_reducer: R, state: S) -> Self {
+    pub(crate) fn new(root_reducer: R, state: S) -> Self {
         let (notifier, _) = watch::channel(state.clone());
         Self {
             mailbox: Mailbox::new(),
@@ -52,13 +52,13 @@ where
 
     /// Returns a sender for the notifier.
     /// The notifier is used to broadcast state changes to subscribers.
-    pub fn notifier(&self) -> watch::Sender<S> {
+    pub(crate) fn notifier(&self) -> watch::Sender<S> {
         self.notifier.clone()
     }
 
     /// Returns the address of the actor's mailbox.
     /// The address is used to send messages to the actor.
-    pub fn mailbox(&self) -> Address<R, S, A> {
+    pub(crate) fn mailbox(&self) -> Address<R, S, A> {
         self.mailbox.address()
     }
 

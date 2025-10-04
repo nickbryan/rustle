@@ -1,5 +1,5 @@
 use crate::input::{Event, EventStream, Key};
-use crate::state::{StateError, Store};
+use crate::state::{Actor, StateError, Store};
 use crate::ui::component::{Component, Container, Element, TextSpan};
 use crate::ui::render::{Canvas, Viewport};
 use crate::ui::values::Color;
@@ -21,18 +21,22 @@ pub struct Editor<C: Canvas> {
     canvas: C,
 }
 
-impl<C: Canvas + Send + Sync> Editor<C> {
-    pub fn new(canvas: C) -> Self {
-        Self {
-            state: Store::new(
-                root_reducer,
-                State {
-                    content: String::new(),
-                    should_quit: false,
-                },
-            ),
-            canvas,
-        }
+impl<C: Canvas> Editor<C> {
+    pub fn new(canvas: C) -> (Self, Actor<fn(State, Action) -> State, State, Action>) {
+        let (store, actor) = Store::new(
+            root_reducer as fn(State, Action) -> State,
+            State {
+                content: String::new(),
+                should_quit: false,
+            },
+        );
+        (
+            Self {
+                state: store,
+                canvas,
+            },
+            actor,
+        )
     }
 
     /// Consume the given `EventStream` to run/drive the Editor.
@@ -99,13 +103,13 @@ fn root_reducer(mut state: State, action: Action) -> State {
 
 /// The `State` struct represents the state of the editor.
 #[derive(Default, Clone, Debug, PartialEq)]
-struct State {
+pub struct State {
     content: String,
     should_quit: bool,
 }
 
 /// The `Action` enum represents the actions that can be dispatched to the store.
-enum Action {
+pub enum Action {
     InsertChar(char),
 }
 

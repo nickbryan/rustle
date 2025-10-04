@@ -3,4 +3,18 @@ name = "rustle_webui"
 version = "0.1.0"
 edition = "2024"
 
+[profile.release]
+# This makes the compiled code faster and smaller, but it makes compiling slower,
+# so it's only enabled in release mode.
+lto = true
+
 [dependencies]
+anyhow = "1.0.100"
+console_error_panic_hook = "0.1.7"
+rustle_core = { version = "0.1", path = "../rustle_core", default-features = false }
+thiserror = "2.0.16"
+tokio = "1.47.1"
+tokio-stream = "0.1.17"
+wasm-bindgen = "0.2.104"
+wasm-bindgen-futures = "0.4.54"
+web-sys = { version = "0.3.81", features = ["console", "Document", "KeyboardEvent", "HtmlElement", "Window"] }

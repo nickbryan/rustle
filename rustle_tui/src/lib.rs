@@ -1,18 +1,18 @@
-use std::io::{Error as IoError, Write};
-
 use anyhow::Result;
-use crossterm::cursor::{Hide, MoveTo, Show};
-use crossterm::style::{Print, SetBackgroundColor, SetForegroundColor};
-use crossterm::terminal::{Clear, ClearType};
 use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture},
-    event::{KeyCode, KeyEvent, KeyModifiers},
-    style::Color as CrosstermColor,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen},
+    cursor::{Hide, MoveTo, Show},
+    event::{DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent, KeyModifiers},
+    style::{Color as CrosstermColor, Print, SetBackgroundColor, SetForegroundColor},
+    terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use rustle_core::ui::render::{Canvas, Cell};
-use rustle_core::ui::values::Rect;
-use rustle_core::{Event, EventStream, Key as CoreKey, ui::values::Color as RustleColor};
+use rustle_core::{
+    Event, EventStream, Key as CoreKey,
+    ui::{
+        render::{Canvas, Cell},
+        values::{Color as RustleColor, Rect},
+    },
+};
+use std::io::{Error as IoError, Write};
 
 /// Newtype to allow mapping RustleColor to CrosstermColor.
 struct Color(RustleColor);

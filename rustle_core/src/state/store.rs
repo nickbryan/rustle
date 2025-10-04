@@ -30,19 +30,18 @@ where
     R: Reducer<S, A> + Send + 'static,
 {
     /// Creates a new store with a given initial state and root reducer.
-    pub fn new(root_reducer: R, state: S) -> Self {
-        let mut actor = Actor::new(root_reducer, state);
+    pub fn new(root_reducer: R, state: S) -> (Self, Actor<R, S, A>) {
+        let actor = Actor::new(root_reducer, state);
         let mailbox = actor.mailbox();
         let subscription = actor.notifier().subscribe();
 
-        tokio::spawn(async move {
-            actor.act().await;
-        });
-
-        Self {
-            mailbox,
-            subscription,
-        }
+        (
+            Self {
+                mailbox,
+                subscription,
+            },
+            actor,
+        )
     }
 
     /// Dispatches an action to the store.

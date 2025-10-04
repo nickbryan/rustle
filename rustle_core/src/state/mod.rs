@@ -45,6 +45,7 @@ mod reducer;
 mod selector;
 mod store;
 
+pub use actor::Actor;
 pub use store::Store;
 
 pub mod error;
