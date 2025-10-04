@@ -1,4 +1,4 @@
-use crate::{state::actor::Actor, state::error::StateError};
+use crate::state::{actor::Actor, error::StateError};
 use async_trait::async_trait;
 use tokio::sync::{
     mpsc::{self, UnboundedReceiver, UnboundedSender},

@@ -1,8 +1,12 @@
-use crate::input::{Event, EventStream, Key};
-use crate::state::{Actor, StateError, Store};
-use crate::ui::component::{Component, Container, Element, TextSpan};
-use crate::ui::render::{Canvas, Viewport};
-use crate::ui::values::Color;
+use crate::{
+    input::{Event, EventStream, Key},
+    state::{Actor, StateError, Store},
+    ui::{
+        component::{Component, Container, Element, TextSpan},
+        render::{Canvas, Viewport},
+        values::Color,
+    },
+};
 
 use crate::CoreError;
 use std::ops::Deref;
