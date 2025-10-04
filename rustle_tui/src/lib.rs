@@ -6,11 +6,11 @@ use crossterm::{
     terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use rustle_core::{
-    Event, EventStream, Key as CoreKey,
     ui::{
         render::{Canvas, Cell},
         values::{Color as RustleColor, Rect},
     },
+    Event, EventStream, Key as CoreKey,
 };
 use std::io::{Error as IoError, Write};
 
