@@ -8,6 +8,9 @@ use rustle_core::{Canvas, Cell, Color, Rect};
 
 use crate::xterm::Terminal;
 
+/// A `Canvas` implementation for the web UI that uses xterm.js.
+/// It writes ANSI escape codes to an in-memory buffer, which is then written
+/// to the xterm.js terminal in the `flush` method.
 pub(crate) struct WebCanvas {
     width: u16,
     height: u16,
@@ -16,6 +19,7 @@ pub(crate) struct WebCanvas {
 }
 
 impl WebCanvas {
+    /// Creates a new `WebCanvas`.
     pub(crate) fn new(width: u16, height: u16, terminal: Terminal) -> Self {
         Self {
             width,
@@ -49,7 +53,7 @@ impl WebCanvas {
             None => return Ok(()),
         };
         self.buffer
-            .write_all(format!("\x1B[{}m", code).as_bytes())
+            .write_all(format!("\x1B[{code}m").as_bytes())
             .context("writing color code color value to buffer")
     }
 

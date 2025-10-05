@@ -8,7 +8,10 @@ use crate::{
     selector::Selector,
 };
 
+/// A trait for spawning asynchronous tasks.
+/// This allows the store to be used with different runtimes, such as Tokio or async-std.
 pub trait Runtime {
+    /// Spawns a new asynchronous task.
     fn spawn(&self, future: impl Future<Output = ()> + Send + 'static);
 }
 
@@ -69,6 +72,8 @@ where
         self.mailbox.send(Select::new(selector)).await
     }
 
+    /// Subscribes to state changes.
+    /// Returns a `watch::Receiver` that can be used to receive notifications when the state changes.
     pub fn subscribe(&self) -> watch::Receiver<S> {
         self.subscription.clone()
     }

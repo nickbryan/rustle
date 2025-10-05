@@ -25,9 +25,13 @@ pub enum Key {
 /// `Event` is dispatched from the backend to allow the application to handle input.
 #[derive(Debug)]
 pub enum Event {
+    /// A key was pressed.
     KeyPressed(Key),
+    /// A mouse input event was received.
     MouseInputReceived,
+    /// The window was resized.
     WindowResized(u16, u16),
+    /// An error occurred while reading input.
     ReadFailed(IoError),
 }
 

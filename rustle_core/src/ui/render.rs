@@ -231,7 +231,6 @@ impl Frame {
     }
 }
 
-
 /// The area of the screen that we can draw to. The Viewport is responsible for handling
 /// interactions with the `Canvas` and drawing.
 pub(crate) struct Viewport<'a, C: Canvas> {
