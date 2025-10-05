@@ -7,8 +7,8 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::ui::{
     component::{Component, Element},
+    error::Error,
     values::{Color, Position, Rect},
-    UiError,
 };
 
 /// Canvas is an interface to the ui. It could be the terminal or web ui.
@@ -61,7 +61,13 @@ pub struct Cell {
 impl Cell {
     /// Create a new Cell.
     #[must_use]
-    pub fn new(col: u16, row: u16, symbol: &str, foreground: Color, background: Color) -> Self {
+    pub(crate) fn new(
+        col: u16,
+        row: u16,
+        symbol: &str,
+        foreground: Color,
+        background: Color,
+    ) -> Self {
         Self {
             position: Position::new(col, row),
             symbol: symbol.into(),
@@ -77,7 +83,7 @@ impl Cell {
     }
 
     /// Reset the Cell's symbol to an empty space.
-    pub fn reset(&mut self) {
+    pub(crate) fn reset(&mut self) {
         self.symbol = " ".into();
     }
 
@@ -103,7 +109,7 @@ impl Cell {
 /// Raised by the Buffer when trying to access a cell that is out of bounds.
 #[derive(Error, Debug)]
 #[error("trying to access index out of bounds")]
-pub struct OutOfBoundsError;
+struct OutOfBoundsError;
 
 /// A mapping of Cells for a given area.
 ///
@@ -111,21 +117,16 @@ pub struct OutOfBoundsError;
 /// with another `Frame` to detect changes that occurred within the last draw loop. This allows
 /// for more efficient rendering as we only need to update changed cells and not the entire
 /// screen.
-pub struct Frame {
+struct Frame {
     area: Rect,
     cells: Vec<Cell>,
     cursor_position: Position,
 }
 
 impl Frame {
-    #[must_use]
-    pub fn area(&self) -> Rect {
-        self.area
-    }
-
     /// Create a `Frame` with all `Cell`s having the symbol " ".
     #[must_use]
-    pub fn empty(area: Rect) -> Self {
+    pub(crate) fn empty(area: Rect) -> Self {
         let size = area.area();
         let mut cells = Vec::with_capacity(size);
 
@@ -144,7 +145,7 @@ impl Frame {
 
     /// The current cursor position.
     #[must_use]
-    pub fn cursor_position(&self) -> Position {
+    pub(crate) fn cursor_position(&self) -> Position {
         self.cursor_position
     }
 
@@ -178,7 +179,7 @@ impl Frame {
     }
 
     /// Reset the Buffer to it's empty state.
-    pub fn reset(&mut self) {
+    pub(crate) fn reset(&mut self) {
         for cell in &mut self.cells {
             cell.reset();
         }
@@ -190,7 +191,7 @@ impl Frame {
     /// # Errors
     ///
     /// Returns an `OutOfBoundsError` if the `position` is outside the bounds of the frame.
-    pub fn write(
+    pub(crate) fn write(
         &mut self,
         position: Position,
         string: &str,
@@ -225,13 +226,13 @@ impl Frame {
     }
 
     /// Set the cursor position for the final frame render.
-    pub fn set_cursor_position(&mut self, position: Position) {
+    pub(crate) fn set_cursor_position(&mut self, position: Position) {
         self.cursor_position = position;
     }
 }
 
 #[must_use]
-pub fn grapheme_width(g: &str) -> usize {
+fn grapheme_width(g: &str) -> usize {
     if g.as_bytes()[0] <= 127 {
         // Fast-path ascii.
         // Point 1: theoretically, ascii control characters should have zero
@@ -258,7 +259,7 @@ pub fn grapheme_width(g: &str) -> usize {
 
 /// The area of the screen that we can draw to. The Viewport is responsible for handling
 /// interactions with the `Canvas` and drawing.
-pub struct Viewport<'a, C: Canvas> {
+pub(crate) struct Viewport<'a, C: Canvas> {
     area: Rect,
     canvas: &'a mut C,
     frames: [Frame; 2],
@@ -270,9 +271,9 @@ impl<'a, C: Canvas> Viewport<'a, C> {
     ///
     /// # Errors
     ///
-    /// This function will return a `UiError::ViewportInitialization` if the `Canvas` fails to provide its size.
-    pub fn new(canvas: &'a mut C) -> Result<Self, UiError> {
-        let area = canvas.size().map_err(UiError::ViewportInitialization)?;
+    /// This function will return a `Error::ViewportInitialization` if the `Canvas` fails to provide its size.
+    pub(crate) fn new(canvas: &'a mut C) -> Result<Self, Error> {
+        let area = canvas.size().map_err(Error::ViewportInitialization)?;
 
         Ok(Self {
             area,
@@ -284,7 +285,7 @@ impl<'a, C: Canvas> Viewport<'a, C> {
 
     /// The area represented by the viewport.
     #[must_use]
-    pub fn area(&self) -> Rect {
+    pub(crate) fn area(&self) -> Rect {
         self.area
     }
 
@@ -294,16 +295,16 @@ impl<'a, C: Canvas> Viewport<'a, C> {
     ///
     /// # Errors
     ///
-    /// This function will return a `UiError` if rendering fails. Possible error variants include:
+    /// This function will return a `Error` if rendering fails. Possible error variants include:
     ///
-    /// - `UiError::Render`: If there is an I/O error when interacting with the `Canvas`.
-    /// - `UiError::Layout`: If the layout computation fails.
-    pub fn render<S>(
+    /// - `Error::Render`: If there is an I/O error when interacting with the `Canvas`.
+    /// - `Error::Layout`: If the layout computation fails.
+    pub(crate) fn render<S>(
         &mut self,
         state: S,
         root_component: &impl Component<S>,
-    ) -> Result<(), UiError> {
-        self.canvas.hide_cursor().map_err(UiError::Render)?;
+    ) -> Result<(), Error> {
+        self.canvas.hide_cursor().map_err(Error::Render)?;
 
         let props = root_component.select(state);
 
@@ -332,17 +333,17 @@ impl<'a, C: Canvas> Viewport<'a, C> {
 
         self.canvas
             .draw(changes.into_iter())
-            .map_err(UiError::Render)?;
+            .map_err(Error::Render)?;
 
         self.canvas
             .position_cursor(next_cursor_pos.row, next_cursor_pos.col)
-            .map_err(UiError::Render)?;
+            .map_err(Error::Render)?;
 
-        self.canvas.show_cursor().map_err(UiError::Render)?;
+        self.canvas.show_cursor().map_err(Error::Render)?;
 
         self.swap_buffers();
 
-        self.canvas.flush().map_err(UiError::Render)
+        self.canvas.flush().map_err(Error::Render)
     }
 
     fn swap_buffers(&mut self) {
@@ -396,7 +397,7 @@ fn render_element(
     node_id: NodeId,
     element: &Element,
     frame: &mut Frame,
-) -> Result<(), UiError> {
+) -> Result<(), Error> {
     let layout = taffy.layout(node_id)?;
     // The `cast_possible_truncation` and `cast_sign_loss` lints are allowed here because
     // the layout coordinates are expected to be within the valid range of `u16` and non-negative,
@@ -411,7 +412,7 @@ fn render_element(
         Element::Span(span) => {
             frame
                 .write(position, &span.text, span.color, span.background)
-                .map_err(|e| UiError::Render(IoError::other(e)))?;
+                .map_err(|e| Error::Render(IoError::other(e)))?;
         }
         Element::Container(container) => {
             let children = taffy.children(node_id).unwrap(); // Should not fail if layout is valid

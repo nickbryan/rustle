@@ -1,13 +1,13 @@
 use crate::ui::values::Color;
 
-pub trait Component<S> {
+pub(crate) trait Component<S> {
     type Props;
 
     fn select(&self, state: S) -> Self::Props;
     fn render(&self, props: Self::Props) -> Element;
 }
 
-pub enum Element {
+pub(crate) enum Element {
     Span(TextSpan),
     // The `Container` variant is wrapped in a `Box` to avoid a large enum variant.
     // The `Container` struct is significantly larger than other variants, so boxing it
@@ -17,13 +17,13 @@ pub enum Element {
     Container(Box<Container>),
 }
 
-pub struct Container {
+pub(crate) struct Container {
     pub layout: taffy::Style,
     pub children: Vec<Element>,
 }
 
-pub struct TextSpan {
-    pub background: Color,
-    pub color: Color,
-    pub text: String,
+pub(crate) struct TextSpan {
+    pub(crate) background: Color,
+    pub(crate) color: Color,
+    pub(crate) text: String,
 }

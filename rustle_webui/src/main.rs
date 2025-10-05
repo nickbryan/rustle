@@ -4,7 +4,7 @@ use rustle_core::{Editor, Event, Key};
 use rustle_state::Runtime;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use wasm_bindgen::prelude::{Closure, JsValue};
+use wasm_bindgen::prelude::Closure;
 use web_sys::KeyboardEvent;
 
 use crate::{
@@ -23,7 +23,7 @@ impl Runtime for WasmRuntime {
     }
 }
 
-fn main() -> Result<(), JsValue> {
+fn main() {
     // TODO: find a better way to maintain encapsulation with state and actor - do we inject a runtime trait somehow?
     // TODO: can we stop editor.rs State and Action from needing to be public?
     // TODO: review and check if the tui crate needs any refactoring to make it more idiomatic
@@ -103,6 +103,4 @@ fn main() -> Result<(), JsValue> {
         .await
         .expect("consuming event stream");
     });
-
-    Ok(())
 }

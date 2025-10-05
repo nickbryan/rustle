@@ -5,11 +5,12 @@
 
 #![warn(clippy::all, clippy::pedantic)]
 
-pub mod editor;
+mod editor;
+mod error;
 mod input;
-pub mod ui;
+mod ui;
 
-pub mod error;
 pub use editor::Editor;
-pub use error::CoreError;
+pub use error::Error;
 pub use input::{Event, EventStream, Key};
+pub use ui::{Canvas, Cell, Color, Position, Rect};

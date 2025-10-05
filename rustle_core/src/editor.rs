@@ -5,13 +5,9 @@ use taffy::{Rect, Style};
 use tokio_stream::StreamExt;
 
 use crate::{
+    error::Error,
     input::{Event, EventStream, Key},
-    ui::{
-        component::{Component, Container, Element, TextSpan},
-        render::{Canvas, Viewport},
-        values::Color,
-    },
-    CoreError,
+    ui::{Canvas, Color, Component, Container, Element, TextSpan, Viewport},
 };
 
 /// The `Editor` struct represents the main component of the text editor application.
@@ -51,8 +47,8 @@ impl<C: Canvas> Editor<C> {
     /// - `CoreError::Input`: If there is a failure reading from the event stream.
     /// - `CoreError::Ui`: If there is an error related to rendering the user interface.
     /// - `CoreError::State`: If a critical state management error occurs, such as the actor terminating unexpectedly.
-    pub async fn consume(&mut self, mut event_stream: EventStream) -> Result<(), CoreError> {
-        let mut viewport = Viewport::new(&mut self.canvas).map_err(CoreError::Ui)?;
+    pub async fn consume(&mut self, mut event_stream: EventStream) -> Result<(), Error> {
+        let mut viewport = Viewport::new(&mut self.canvas).map_err(Error::Ui)?;
 
         let mut state_rx = self.state.subscribe();
 
@@ -64,14 +60,14 @@ impl<C: Canvas> Editor<C> {
                             self.state.dispatch(Action::InsertChar(c)).await?;
                         }
                         Event::ReadFailed(e) => {
-                            return Err(CoreError::Input(e.to_string()));
+                            return Err(Error::Input(e.to_string()));
                         }
                         _ => (),
                     }
                 }
                 Ok(()) = state_rx.changed() => {
                     viewport.render(state_rx.borrow().deref(), &RootComponent)
-                        .map_err(CoreError::Ui)?;
+                        .map_err(Error::Ui)?;
                 }
                 else => return Err(StateError::ActorTerminated.into()),
             }
@@ -105,13 +101,13 @@ fn root_reducer(mut state: State, action: Action) -> State {
 
 /// The `State` struct represents the state of the editor.
 #[derive(Default, Clone, Debug, PartialEq)]
-pub struct State {
+struct State {
     content: String,
     should_quit: bool,
 }
 
 /// The `Action` enum represents the actions that can be dispatched to the store.
-pub enum Action {
+enum Action {
     InsertChar(char),
 }
 

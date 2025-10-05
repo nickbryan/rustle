@@ -68,7 +68,7 @@ impl Rect {
 
     /// Create a new Rect with a set Position.
     #[must_use]
-    pub fn positioned(width: u16, height: u16, col: u16, row: u16) -> Self {
+    pub(crate) fn positioned(width: u16, height: u16, col: u16, row: u16) -> Self {
         Self {
             width,
             height,
@@ -78,38 +78,38 @@ impl Rect {
 
     /// Returns the area of the Rect.
     #[must_use]
-    pub fn area(&self) -> usize {
+    pub(crate) fn area(&self) -> usize {
         self.width.saturating_mul(self.height).into()
     }
 
     /// Returns the leftmost possible value of the Rect. **Note**: This is zero based.
     #[must_use]
-    pub fn left(&self) -> u16 {
+    pub(crate) fn left(&self) -> u16 {
         self.position.col
     }
 
     /// Returns the rightmost possible value of the Rect. **Note**: This is zero based.
     #[must_use]
-    pub fn right(&self) -> u16 {
+    pub(crate) fn right(&self) -> u16 {
         self.position.col + self.width - 1
     }
 
     /// Returns the topmost possible value of the Rect. **Note**: This is zero based.
     #[must_use]
-    pub fn top(&self) -> u16 {
+    pub(crate) fn top(&self) -> u16 {
         self.position.row
     }
 
     /// Returns the bottommost possible value of the Rect. **Note**: This is zero based.
     #[must_use]
-    pub fn bottom(&self) -> u16 {
+    pub(crate) fn bottom(&self) -> u16 {
         self.position.row + self.height - 1
     }
 
     /// Check if the given position is within the Rect, taking the Rect's Position into
     /// consideration.
     #[must_use]
-    pub fn contains(&self, position: Position) -> bool {
+    pub(crate) fn contains(&self, position: Position) -> bool {
         let Position { col, row } = position;
 
         col >= self.left() && col <= self.right() && row >= self.top() && row <= self.bottom()

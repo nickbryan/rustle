@@ -4,10 +4,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use rustle_core::ui::{
-    render::{Canvas, Cell},
-    values::{Color, Rect},
-};
+use rustle_core::{Canvas, Cell, Color, Rect};
 
 use crate::xterm::Terminal;
 
