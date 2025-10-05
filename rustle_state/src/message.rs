@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::state::{mailbox::Message, selector::Selector};
+use crate::{mailbox::Message, selector::Selector};
 
 /// A `Dispatch` message is a wrapper around an action that is sent to the store to
 /// trigger a state change. It is the sole mechanism for initiating state mutations.

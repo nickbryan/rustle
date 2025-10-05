@@ -1,3 +1,9 @@
 [workspace]
 resolver = "3"
-members = ["rustle_core", "rustle_tui", "rustle_webui"]
+members = ["rustle_core", "rustle_state", "rustle_tui", "rustle_webui"]
+
+[profile.release]
+# This makes the compiled code faster and smaller, but it makes compiling slower,
+# so it's only enabled in release mode.
+lto = true
+

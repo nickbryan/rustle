@@ -3,11 +3,6 @@ name = "rustle_webui"
 version = "0.1.0"
 edition = "2024"
 
-[profile.release]
-# This makes the compiled code faster and smaller, but it makes compiling slower,
-# so it's only enabled in release mode.
-lto = true
-
 [dependencies]
 anyhow = "1.0.100"
 console_error_panic_hook = "0.1.7"

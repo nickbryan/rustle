@@ -4,7 +4,7 @@ use tokio::sync::{
     oneshot::{self, Sender},
 };
 
-use crate::state::{actor::Actor, error::StateError};
+use crate::{actor::Actor, error::StateError};
 
 /// A message that can be sent to an actor.
 /// This is a trait that all messages must implement.

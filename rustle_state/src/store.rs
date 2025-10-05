@@ -1,6 +1,6 @@
 use tokio::sync::watch;
 
-use crate::state::{
+use crate::{
     actor::Actor,
     mailbox::Address,
     message::{Dispatch, Select},

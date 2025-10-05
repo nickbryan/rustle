@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+rustle_state = { version = "0.1.0", path = "../rustle_state" }
 tokio = { version = "1.47.1", features = ["macros", "rt"] }
-async-trait = "0.1.89"
 tokio-stream = "0.1.17"
 taffy = "0.9.1"
 unicode-width = "0.2.1"

@@ -7,7 +7,6 @@
 
 pub mod editor;
 mod input;
-mod state;
 pub mod ui;
 
 pub mod error;

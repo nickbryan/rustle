@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use tokio::sync::watch;
 
-use crate::state::{
+use crate::{
     mailbox::{Address, Deliver, Mailbox},
     message::{Dispatch, Select},
     reducer::Reducer,

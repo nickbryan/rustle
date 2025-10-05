@@ -2,10 +2,9 @@ use std::ops::Deref;
 
 use taffy::{Rect, Style};
 use tokio_stream::StreamExt;
-
+use rustle_state::{Actor, StateError, Store};
 use crate::{
     input::{Event, EventStream, Key},
-    state::{Actor, StateError, Store},
     ui::{
         component::{Component, Container, Element, TextSpan},
         render::{Canvas, Viewport},
