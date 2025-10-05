@@ -34,6 +34,9 @@ pub trait Reducer<S, A> {
     fn reduce(&self, state: S, action: A) -> S;
 }
 
+// A type alias for a function that implements the `Reducer` trait.
+pub type ReducerFn<S, A> = fn(S, A) -> S;
+
 // Allow a function to be used as a reducer if the function signature matches.
 impl<F, S, A> Reducer<S, A> for F
 where

@@ -15,7 +15,7 @@ use rustle_core::{
     Event, EventStream, Key as CoreKey,
 };
 
-/// Newtype to allow mapping RustleColor to CrosstermColor.
+/// Newtype to allow mapping `RustleColor` to `CrosstermColor`.
 struct Color(RustleColor);
 
 /// Canvas implementation for crossterm.
@@ -24,7 +24,7 @@ pub struct CrosstermCanvas<W: Write> {
 }
 
 impl<W: Write> CrosstermCanvas<W> {
-    /// Creates a new CrosstermCanvas.
+    /// Creates a new `CrosstermCanvas`.
     pub fn new(mut out: W) -> Result<Self, IoError> {
         crossterm::terminal::enable_raw_mode()?;
         crossterm::execute!(out, EnterAlternateScreen)?;
@@ -35,7 +35,7 @@ impl<W: Write> CrosstermCanvas<W> {
 }
 
 impl<W: Write> Drop for CrosstermCanvas<W> {
-    /// Ensures that we LeaveAlternateScreen and disable_raw_mode before the application ends to
+    /// Ensures that we `LeaveAlternateScreen` and `disable_raw_mode` before the application ends to
     /// return the user terminal back to normal.
     fn drop(&mut self) {
         crossterm::execute!(self.out, DisableMouseCapture)
@@ -138,10 +138,10 @@ impl From<Color> for CrosstermColor {
     }
 }
 
-/// Newtype to allow mapping crossterm::event::KeyEvent to VelmKey.
+/// Newtype to allow mapping `crossterm::event::KeyEvent` to `VelmKey`.
 struct Key(CoreKey);
 
-/// Map the events coming from the crossterm EventStream into the events that are expected by the application.
+/// Map the events coming from the crossterm `EventStream` into the events that are expected by the application.
 pub fn map_crossterm_event_stream() -> EventStream {
     use futures::StreamExt;
 
@@ -150,10 +150,8 @@ pub fn map_crossterm_event_stream() -> EventStream {
 
         match possible_event {
             Ok(ctevent::Event::Key(key)) => Event::KeyPressed(Key::from(key).0),
-            Ok(crossterm::event::Event::FocusGained)
-            | Ok(crossterm::event::Event::FocusLost)
-            | Ok(crossterm::event::Event::Paste(_))
-            | Ok(ctevent::Event::Mouse(_)) => Event::MouseInputReceived,
+            Ok(crossterm::event::Event::FocusGained | crossterm::event::Event::FocusLost |
+crossterm::event::Event::Paste(_) | ctevent::Event::Mouse(_)) => Event::MouseInputReceived,
             Ok(ctevent::Event::Resize(x, y)) => Event::WindowResized(x, y),
             Err(e) => Event::ReadFailed(e),
         }

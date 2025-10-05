@@ -1,8 +1,9 @@
 use std::ops::Deref;
 
+use rustle_state::{ReducerFn, Runtime, StateError, Store};
 use taffy::{Rect, Style};
 use tokio_stream::StreamExt;
-use rustle_state::{Actor, StateError, Store};
+
 use crate::{
     input::{Event, EventStream, Key},
     ui::{
@@ -21,26 +22,23 @@ use crate::{
 /// the application state. All state changes and queries are channeled through the
 /// `Store`, ensuring a predictable and maintainable architecture.
 pub struct Editor<C: Canvas> {
-    state: Store<fn(State, Action) -> State, State, Action>,
+    state: Store<ReducerFn<State, Action>, State, Action>,
     canvas: C,
 }
 
 impl<C: Canvas> Editor<C> {
-    pub fn new(canvas: C) -> (Self, Actor<fn(State, Action) -> State, State, Action>) {
-        let (store, actor) = Store::new(
-            root_reducer as fn(State, Action) -> State,
-            State {
-                content: String::new(),
-                should_quit: false,
-            },
-        );
-        (
-            Self {
-                state: store,
-                canvas,
-            },
-            actor,
-        )
+    pub fn new(canvas: C, runtime: &impl Runtime) -> Self {
+        Self {
+            state: Store::new(
+                root_reducer,
+                State {
+                    content: String::new(),
+                    should_quit: false,
+                },
+                runtime,
+            ),
+            canvas,
+        }
     }
 
     /// Consume the given `EventStream` to run/drive the Editor.

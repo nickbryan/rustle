@@ -9,10 +9,19 @@ use anyhow::{Context, Error};
 use backtrace::Backtrace;
 use crossterm::{style::Print, terminal::LeaveAlternateScreen};
 use rustle_core::Editor;
+use rustle_state::Runtime;
 
 use crate::backend::CrosstermCanvas;
 
 mod backend;
+
+struct TokioRuntime;
+
+impl Runtime for TokioRuntime {
+    fn spawn(&self, future: impl Future<Output = ()> + Send + 'static) {
+        tokio::spawn(future);
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -22,9 +31,7 @@ async fn main() -> Result<(), Error> {
 
     let canvas = CrosstermCanvas::new(io::stdout()).context("creating crossterm canvas")?;
 
-    let (mut editor, mut actor) = Editor::new(canvas);
-
-    tokio::spawn(async move { actor.act().await });
+    let mut editor = Editor::new(canvas, &TokioRuntime);
 
     editor
         .consume(backend::map_crossterm_event_stream())

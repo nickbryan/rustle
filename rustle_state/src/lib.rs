@@ -39,14 +39,14 @@
 //! changes are explicit and traceable.
 
 mod actor;
+mod error;
 mod mailbox;
 mod message;
 mod reducer;
 mod selector;
 mod store;
 
-pub use actor::Actor;
-pub use store::Store;
-
-pub mod error;
 pub use error::StateError;
+pub use reducer::{Reducer, ReducerFn};
+pub use selector::Selector;
+pub use store::{Runtime, Store};

@@ -24,7 +24,7 @@ use crate::{
 ///
 /// This design ensures that all state mutations are handled sequentially and safely,
 /// preventing race conditions and ensuring data consistency in a concurrent environment.
-pub struct Actor<R, S, A>
+pub(crate) struct Actor<R, S, A>
 where
     S: Send + Clone + Sync,
     R: Send,
@@ -65,7 +65,7 @@ where
 
     /// Starts the actor's event loop.
     /// The actor will continuously receive and process messages from its mailbox.
-    pub async fn act(&mut self) {
+    pub(crate) async fn act(&mut self) {
         while let Some(assignment) = self.mailbox.recv().await {
             assignment.assign(self).await;
         }

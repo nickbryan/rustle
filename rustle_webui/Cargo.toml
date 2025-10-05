@@ -6,7 +6,8 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.100"
 console_error_panic_hook = "0.1.7"
-rustle_core = { version = "0.1", path = "../rustle_core", default-features = false }
+rustle_core = { version = "0.1", path = "../rustle_core" }
+rustle_state = { version = "0.1", path = "../rustle_state" }
 thiserror = "2.0.16"
 tokio = "1.47.1"
 tokio-stream = "0.1.17"

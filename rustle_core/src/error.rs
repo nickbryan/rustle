@@ -1,5 +1,6 @@
-use thiserror::Error;
 use rustle_state::StateError;
+use thiserror::Error;
+
 use crate::ui::UiError;
 
 /// The primary, top-level error type for the `rustle_core` crate.

@@ -1,6 +1,7 @@
 #![warn(clippy::all, clippy::pedantic)]
 
 use rustle_core::{Editor, Event, Key};
+use rustle_state::Runtime;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use wasm_bindgen::prelude::{Closure, JsValue};
@@ -13,6 +14,14 @@ use crate::{
 
 mod backend;
 mod xterm;
+
+struct WasmRuntime;
+
+impl Runtime for WasmRuntime {
+    fn spawn(&self, future: impl Future<Output = ()> + Send + 'static) {
+        wasm_bindgen_futures::spawn_local(future);
+    }
+}
 
 fn main() -> Result<(), JsValue> {
     // TODO: find a better way to maintain encapsulation with state and actor - do we inject a runtime trait somehow?
@@ -86,16 +95,13 @@ fn main() -> Result<(), JsValue> {
     terminal.focus();
 
     wasm_bindgen_futures::spawn_local(async move {
-        let canvas = WebCanvas::new(terminal.cols(), terminal.rows(), terminal);
-
-        let (mut editor, mut actor) = Editor::new(canvas);
-
-        wasm_bindgen_futures::spawn_local(async move { actor.act().await });
-
-        editor
-            .consume(Box::pin(ReceiverStream::new(rx)))
-            .await
-            .expect("consuming event stream");
+        Editor::new(
+            WebCanvas::new(terminal.cols(), terminal.rows(), terminal),
+            &WasmRuntime,
+        )
+        .consume(Box::pin(ReceiverStream::new(rx)))
+        .await
+        .expect("consuming event stream");
     });
 
     Ok(())

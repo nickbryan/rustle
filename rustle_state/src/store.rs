@@ -8,6 +8,10 @@ use crate::{
     selector::Selector,
 };
 
+pub trait Runtime {
+    fn spawn(&self, future: impl Future<Output = ()> + Send + 'static);
+}
+
 /// The `Store` is the primary interface for interacting with the application state.
 /// It provides a simple and consistent way to manage state in a concurrent environment.
 ///
@@ -19,7 +23,11 @@ use crate::{
 ///
 /// The `Store` is generic over the reducer, state, and action types, making it highly
 /// flexible and adaptable to different use cases.
-pub struct Store<R: Send, S: Send + Clone + Sync, A> {
+pub struct Store<R, S, A>
+where
+    R: Send,
+    S: Send + Clone + Sync,
+{
     mailbox: Address<R, S, A>,
     subscription: watch::Receiver<S>,
 }
@@ -31,18 +39,17 @@ where
     R: Reducer<S, A> + Send + 'static,
 {
     /// Creates a new store with a given initial state and root reducer.
-    pub fn new(root_reducer: R, state: S) -> (Self, Actor<R, S, A>) {
-        let actor = Actor::new(root_reducer, state);
+    pub fn new<RT: Runtime>(root_reducer: R, state: S, runtime: &RT) -> Self {
+        let mut actor = Actor::new(root_reducer, state);
         let mailbox = actor.mailbox();
         let subscription = actor.notifier().subscribe();
 
-        (
-            Self {
-                mailbox,
-                subscription,
-            },
-            actor,
-        )
+        runtime.spawn(async move { actor.act().await });
+
+        Self {
+            mailbox,
+            subscription,
+        }
     }
 
     /// Dispatches an action to the store.

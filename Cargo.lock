@@ -469,6 +469,7 @@ dependencies = [
  "crossterm",
  "futures",
  "rustle_core",
+ "rustle_state",
  "tokio",
 ]
 
@@ -479,6 +480,7 @@ dependencies = [
  "anyhow",
  "console_error_panic_hook",
  "rustle_core",
+ "rustle_state",
  "thiserror",
  "tokio",
  "tokio-stream",

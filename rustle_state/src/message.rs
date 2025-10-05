@@ -7,7 +7,7 @@ use crate::{mailbox::Message, selector::Selector};
 ///
 /// When a `Dispatch` message is sent, the store forwards it to the actor, which then
 /// invokes the root reducer to update the state.
-pub struct Dispatch<A: Send> {
+pub(crate) struct Dispatch<A: Send> {
     action: A,
 }
 
@@ -32,7 +32,7 @@ impl<A: Send> Message for Dispatch<A> {
 ///
 /// This message provides a safe and controlled way to access the state, ensuring that
 /// the state itself is never directly exposed or modified by the querier.
-pub struct Select<State, S>
+pub(crate) struct Select<State, S>
 where
     S: Selector<State>,
 {
@@ -50,7 +50,7 @@ where
     S: Selector<State>,
 {
     /// Creates a new `Select` message.
-    pub fn new(selector: S) -> Self {
+    pub(crate) fn new(selector: S) -> Self {
         Select {
             selector,
             _types: PhantomData,
@@ -58,7 +58,7 @@ where
     }
 
     /// Consumes the message and returns the inner selector.
-    pub fn into_selector(self) -> S {
+    pub(crate) fn into_selector(self) -> S {
         self.selector
     }
 }
