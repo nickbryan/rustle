@@ -1,8 +1,4 @@
-use std::{
-    any::{Any, TypeId},
-    collections::HashMap,
-    io::Error as IoError,
-};
+use std::{any::Any, io::Error as IoError};
 
 use taffy::{AvailableSpace, Dimension, NodeId, Size, Style, TaffyError, TaffyTree};
 use thiserror::Error;
@@ -239,7 +235,6 @@ impl Frame {
 /// interactions with the `Canvas` and drawing.
 pub(crate) struct Viewport<'a, C: Canvas> {
     area: Rect,
-    cache: MemoizationCache,
     canvas: &'a mut C,
     frames: [Frame; 2],
     current_frame_idx: usize,
@@ -256,7 +251,6 @@ impl<'a, C: Canvas> Viewport<'a, C> {
 
         Ok(Self {
             area,
-            cache: MemoizationCache::new(),
             canvas,
             frames: [Frame::empty(area), Frame::empty(area)],
             current_frame_idx: 0,
@@ -284,48 +278,43 @@ impl<'a, C: Canvas> Viewport<'a, C> {
         state: S,
         root_component: &RC,
     ) -> Result<(), Error> {
-        if let Some(props) = select_if_changed(root_component, state, &mut self.cache) {
-            println!("render!");
-            self.canvas.hide_cursor().map_err(Error::Render)?;
+        self.canvas.hide_cursor().map_err(Error::Render)?;
 
-            let element = root_component.render(props);
+        let element = root_component.render(root_component.select(state));
 
-            let mut taffy = TaffyTree::new();
-            let node = element_to_node(&mut taffy, &element)?;
+        let mut taffy = TaffyTree::new();
+        let node = element_to_node(&mut taffy, &element)?;
 
-            let frame = &mut self.frames[self.current_frame_idx];
+        let frame = &mut self.frames[self.current_frame_idx];
 
-            taffy.compute_layout(
-                node,
-                Size {
-                    width: AvailableSpace::Definite(f32::from(frame.area.width)),
-                    height: AvailableSpace::Definite(f32::from(frame.area.height)),
-                },
-            )?;
+        taffy.compute_layout(
+            node,
+            Size {
+                width: AvailableSpace::Definite(f32::from(frame.area.width)),
+                height: AvailableSpace::Definite(f32::from(frame.area.height)),
+            },
+        )?;
 
-            render_element(&mut taffy, node, &element, frame)?;
+        render_element(&mut taffy, node, &element, frame)?;
 
-            let next_cursor_pos = self.frames[self.current_frame_idx].cursor_position;
+        let next_cursor_pos = self.frames[self.current_frame_idx].cursor_position;
 
-            let previous_frame = &self.frames[1 - self.current_frame_idx];
-            let changes = previous_frame.diff(&self.frames[self.current_frame_idx]);
+        let previous_frame = &self.frames[1 - self.current_frame_idx];
+        let changes = previous_frame.diff(&self.frames[self.current_frame_idx]);
 
-            self.canvas
-                .draw(changes.into_iter())
-                .map_err(Error::Render)?;
+        self.canvas
+            .draw(changes.into_iter())
+            .map_err(Error::Render)?;
 
-            self.canvas
-                .position_cursor(next_cursor_pos.row, next_cursor_pos.col)
-                .map_err(Error::Render)?;
+        self.canvas
+            .position_cursor(next_cursor_pos.row, next_cursor_pos.col)
+            .map_err(Error::Render)?;
 
-            self.canvas.show_cursor().map_err(Error::Render)?;
+        self.canvas.show_cursor().map_err(Error::Render)?;
 
-            self.swap_buffers();
+        self.swap_buffers();
 
-            self.canvas.flush().map_err(Error::Render)
-        } else {
-            Ok(())
-        }
+        self.canvas.flush().map_err(Error::Render)
     }
 
     fn swap_buffers(&mut self) {
@@ -372,35 +361,6 @@ fn element_to_node(taffy: &mut TaffyTree, element: &Element) -> Result<NodeId, T
             taffy.new_with_children(container.layout.clone(), &children)
         }
     }
-}
-
-/// A cache to store the last rendered props for each component.
-/// The key is the `TypeId` of the component struct, ensuring uniqueness.
-/// The value is the props, type-erased using Box<dyn Any>.
-type MemoizationCache = HashMap<TypeId, Box<dyn Any>>;
-
-/// Checks if a component needs to be re-rendered by comparing its new props with cached props.
-///
-/// Returns `Some(props)` if a render is needed, or `None` if the props are unchanged.
-/// If a render is needed, the cache is updated with the new props.
-fn select_if_changed<C: Component<S> + 'static, S>(
-    component: &C,
-    state: S,
-    cache: &mut MemoizationCache,
-) -> Option<C::Props> {
-    let component_id = TypeId::of::<C>();
-    let new_props = component.select(state);
-
-    if let Some(cached_props_any) = cache.get(&component_id)
-        && let Some(old_props) = cached_props_any.downcast_ref::<C::Props>()
-        && *old_props == new_props
-    {
-        return None;
-    }
-
-    cache.insert(component_id, Box::new(new_props.clone()));
-
-    Some(new_props)
 }
 
 fn render_element(
