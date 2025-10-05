@@ -4,7 +4,8 @@ use crate::ui::values::Color;
 /// Components are responsible for selecting their props from the state and rendering an element.
 pub(crate) trait Component<S> {
     /// The properties required by the component to render.
-    type Props;
+    /// Must be comparable, cloneable, and have a 'static lifetime for memoization.
+    type Props: PartialEq + Clone + 'static;
 
     /// Selects the component's props from the given state.
     fn select(&self, state: S) -> Self::Props;

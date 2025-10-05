@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ops::{Add, Deref};
 
 use rustle_state::{ReducerFn, Runtime, StateError, Store};
 use taffy::{Rect, Style};
@@ -29,6 +29,7 @@ impl<C: Canvas> Editor<C> {
                 root_reducer,
                 State {
                     content: String::new(),
+                    test: String::new(),
                     should_quit: false,
                 },
                 runtime,
@@ -77,6 +78,19 @@ impl<C: Canvas> Editor<C> {
     }
 }
 
+/// The `State` struct represents the state of the editor.
+#[derive(Default, Clone, Debug, PartialEq)]
+struct State {
+    content: String,
+    test: String,
+    should_quit: bool,
+}
+
+/// The `Action` enum represents the actions that can be dispatched to the store.
+enum Action {
+    InsertChar(char),
+}
+
 /// The `root_reducer` is the main reducer for the editor.
 /// It is responsible for handling all actions and updating the state.
 // The `needless_pass_by_value` lint is allowed here because the function signature is constrained
@@ -88,31 +102,21 @@ impl<C: Canvas> Editor<C> {
 #[allow(clippy::needless_pass_by_value)]
 fn root_reducer(mut state: State, action: Action) -> State {
     match action {
-        Action::InsertChar('q') => {
-            state.should_quit = true;
+        Action::InsertChar('q') => state.should_quit = true,
+        Action::InsertChar('a') => state.test.push('a'),
+        Action::InsertChar('s') => {
+            state.content = state.content.add(&state.test);
+            state.test.clear();
         }
-        Action::InsertChar(c) => {
-            state.content.push(c);
-        }
+        Action::InsertChar(c) => state.content.push(c),
     }
 
     state
 }
 
-/// The `State` struct represents the state of the editor.
-#[derive(Default, Clone, Debug, PartialEq)]
-struct State {
-    content: String,
-    should_quit: bool,
-}
-
-/// The `Action` enum represents the actions that can be dispatched to the store.
-enum Action {
-    InsertChar(char),
-}
-
 struct RootComponent;
 
+#[derive(Clone, PartialEq)]
 struct RootComponentProps {
     content: String,
 }

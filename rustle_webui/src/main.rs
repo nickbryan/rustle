@@ -6,7 +6,7 @@ use rustle_state::Runtime;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use wasm_bindgen::prelude::Closure;
-use web_sys::KeyboardEvent;
+use web_sys::{window, KeyboardEvent};
 
 use crate::{
     backend::WebCanvas,
@@ -117,6 +117,8 @@ fn main() -> Result<()> {
         .consume(Box::pin(ReceiverStream::new(rx)))
         .await
         .expect("consuming event stream");
+
+        window().unwrap().close().expect("closing window");
     });
 
     Ok(())
