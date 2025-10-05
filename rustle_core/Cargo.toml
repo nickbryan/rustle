@@ -8,6 +8,6 @@ rustle_state = { version = "0.1.0", path = "../rustle_state" }
 tokio = { version = "1.47.1", features = ["macros", "rt"] }
 tokio-stream = "0.1.17"
 taffy = "0.9.1"
-unicode-width = "0.2.1"
+unicode-display-width = "0.2.0"
 thiserror = "2.0.16"
 unicode-segmentation = "1.12.0"

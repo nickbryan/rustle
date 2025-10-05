@@ -44,8 +44,12 @@ impl WebCanvas {
             return Ok(());
         }
 
+        let code = match color_code(color) {
+            Some(c) => c,
+            None => return Ok(()),
+        };
         self.buffer
-            .write_all(format!("\x1B[{}m", color_code(color)).as_bytes())
+            .write_all(format!("\x1B[{}m", code).as_bytes())
             .context("writing color code color value to buffer")
     }
 
@@ -66,7 +70,10 @@ impl WebCanvas {
             return Ok(());
         }
 
-        let mut code = color_code(color);
+        let mut code = match color_code(color) {
+            Some(c) => c,
+            None => return Ok(()),
+        };
         if code > 0 {
             code += 10;
         }
@@ -77,26 +84,26 @@ impl WebCanvas {
     }
 }
 
-fn color_code(color: Color) -> usize {
+fn color_code(color: Color) -> Option<usize> {
     match color {
-        Color::Reset => 0,
-        Color::Black => 30,
-        Color::Red => 31,
-        Color::Green => 32,
-        Color::Yellow => 33,
-        Color::Blue => 34,
-        Color::Magenta => 35,
-        Color::Cyan => 36,
-        Color::Gray => 37,
-        Color::DarkGray => 90,
-        Color::LightRed => 91,
-        Color::LightGreen => 92,
-        Color::LightYellow => 93,
-        Color::LightBlue => 94,
-        Color::LightMagenta => 95,
-        Color::LightCyan => 96,
-        Color::White => 97,
-        _ => unreachable!(), // Expected to be handled before this. // TODO: clean this up
+        Color::Reset => Some(0),
+        Color::Black => Some(30),
+        Color::Red => Some(31),
+        Color::Green => Some(32),
+        Color::Yellow => Some(33),
+        Color::Blue => Some(34),
+        Color::Magenta => Some(35),
+        Color::Cyan => Some(36),
+        Color::Gray => Some(37),
+        Color::DarkGray => Some(90),
+        Color::LightRed => Some(91),
+        Color::LightGreen => Some(92),
+        Color::LightYellow => Some(93),
+        Color::LightBlue => Some(94),
+        Color::LightMagenta => Some(95),
+        Color::LightCyan => Some(96),
+        Color::White => Some(97),
+        _ => None,
     }
 }
 

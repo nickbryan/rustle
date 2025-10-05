@@ -13,13 +13,13 @@ use rustle_core::{Canvas, Cell, Color as RustleColor, Event, EventStream, Key as
 struct Color(RustleColor);
 
 /// Canvas implementation for crossterm.
-pub(crate) struct CrosstermCanvas<W: Write> {
+pub struct CrosstermCanvas<W: Write> {
     out: W,
 }
 
 impl<W: Write> CrosstermCanvas<W> {
     /// Creates a new `CrosstermCanvas`.
-    pub(crate) fn new(mut out: W) -> Result<Self, IoError> {
+    pub fn new(mut out: W) -> Result<Self, IoError> {
         crossterm::terminal::enable_raw_mode()?;
         crossterm::execute!(out, EnterAlternateScreen)?;
         crossterm::execute!(out, EnableMouseCapture)?;
@@ -136,7 +136,7 @@ impl From<Color> for CrosstermColor {
 struct Key(CoreKey);
 
 /// Map the events coming from the crossterm `EventStream` into the events that are expected by the application.
-pub(crate) fn map_crossterm_event_stream() -> EventStream {
+pub fn map_crossterm_event_stream() -> EventStream {
     use futures::StreamExt;
 
     Box::pin(crossterm::event::EventStream::new().map(|possible_event| {

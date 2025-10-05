@@ -2,8 +2,8 @@ use std::io::Error as IoError;
 
 use taffy::{AvailableSpace, Dimension, NodeId, Size, Style, TaffyError, TaffyTree};
 use thiserror::Error;
+use unicode_display_width::width as grapheme_width;
 use unicode_segmentation::UnicodeSegmentation;
-use unicode_width::UnicodeWidthStr;
 
 use crate::ui::{
     component::{Component, Element},
@@ -213,7 +213,7 @@ impl Frame {
                 background,
             );
 
-            cursor += grapheme_width(grapheme);
+            cursor += grapheme_width(grapheme) as usize;
         }
 
         for i in cursor..str_start + usize::from(self.area.width - position.col) {
@@ -231,31 +231,6 @@ impl Frame {
     }
 }
 
-#[must_use]
-fn grapheme_width(g: &str) -> usize {
-    if g.as_bytes()[0] <= 127 {
-        // Fast-path ascii.
-        // Point 1: theoretically, ascii control characters should have zero
-        // width, but in our case we actually want them to have width: if they
-        // show up in text, we want to treat them as textual elements that can
-        // be edited.  So we can get away with making all ascii single width
-        // here.
-        // Point 2: we're only examining the first codepoint here, which means
-        // we're ignoring graphemes formed with combining characters.  However,
-        // if it starts with ascii, it's going to be a single-width grapeheme
-        // regardless, so, again, we can get away with that here.
-        // Point 3: we're only examining the first _byte_.  But for utf8, when
-        // checking for ascii range values only, that works.
-        1
-    } else {
-        // We use max(1) here because all grapeheme clusters--even illformed
-        // ones--should have at least some width so they can be edited
-        // properly.
-        // TODO properly handle unicode width for all codepoints
-        // example of where unicode width is currently wrong: 🤦🏼‍♂️ (taken from https://hsivonen.fi/string-length/)
-        UnicodeWidthStr::width(g).max(1)
-    }
-}
 
 /// The area of the screen that we can draw to. The Viewport is responsible for handling
 /// interactions with the `Canvas` and drawing.
@@ -308,7 +283,6 @@ impl<'a, C: Canvas> Viewport<'a, C> {
 
         let props = root_component.select(state);
 
-        // TODO: if props != previous props
         let element = root_component.render(props);
 
         let mut taffy = TaffyTree::new();

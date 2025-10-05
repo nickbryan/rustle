@@ -1,5 +1,6 @@
 #![warn(clippy::all, clippy::pedantic)]
 
+use anyhow::{Context, Result};
 use rustle_core::{Editor, Event, Key};
 use rustle_state::Runtime;
 use tokio::sync::mpsc;
@@ -23,13 +24,7 @@ impl Runtime for WasmRuntime {
     }
 }
 
-fn main() {
-    // TODO: find a better way to maintain encapsulation with state and actor - do we inject a runtime trait somehow?
-    // TODO: can we stop editor.rs State and Action from needing to be public?
-    // TODO: review and check if the tui crate needs any refactoring to make it more idiomatic
-    // TODO: convert the errors in here to anyhow
-    // TODO: check if anyhow is the right choice to use throughout both ui crates of if we need to use a combination fo thiserror and anyhow (as some of it is kind of a lib)
-
+fn main() -> Result<()> {
     console_error_panic_hook::set_once();
 
     let terminal = Terminal::new();
@@ -39,7 +34,7 @@ fn main() {
         .document()
         .unwrap()
         .get_element_by_id("terminal")
-        .unwrap();
+        .context("getting terminal element")?;
 
     terminal.open(terminal_elem);
 
@@ -50,9 +45,7 @@ fn main() {
             return true;
         }
 
-        // TODO: handle error
-        // TODO: Should this be a normal send (async)
-        let _ = tx.blocking_send(Event::KeyPressed(match event.key().as_str() {
+        let send_result = tx.try_send(Event::KeyPressed(match event.key().as_str() {
             "Enter" => Key::Enter,
             "ArrowLeft" => Key::Left,
             "ArrowUp" => Key::Up,
@@ -68,18 +61,25 @@ fn main() {
             "PageUp" => Key::PageUp,
             "PageDown" => Key::PageDown,
             key => {
-                // TODO: clean this up
                 if key.len() == 1 {
-                    if event.ctrl_key() {
-                        Key::Ctrl(key.chars().next().unwrap())
+                    if let Some(c) = key.chars().next() {
+                        if event.ctrl_key() {
+                            Key::Ctrl(c)
+                        } else {
+                            Key::Char(c)
+                        }
                     } else {
-                        Key::Char(key.chars().next().unwrap())
+                        Key::Unknown
                     }
                 } else {
                     Key::Unknown
                 }
             }
         }));
+
+        if let Err(e) = send_result {
+            web_sys::console::log_1(&format!("Failed to send key event: {}", e).into());
+        }
 
         true
     });
@@ -103,4 +103,6 @@ fn main() {
         .await
         .expect("consuming event stream");
     });
+
+    Ok(())
 }
