@@ -1,2 +1,9 @@
 [editor]
-idle-timeout = 150
+idle-timeout = 750
+
+[bindings.normal]
+i = "enter_insert_mode"
+":" = { q = "quit" }
+
+[bindings.insert]
+j = { j = "enter_normal_mode" }

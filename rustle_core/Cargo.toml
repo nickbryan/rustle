@@ -4,10 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-merge = "0.2.0"
 rustle_state = { version = "0.1.0", path = "../rustle_state" }
 serde = { version = "1.0.228", features = ["derive"] }
-serde_with = "3.4.0"
 taffy = "0.9.1"
 thiserror = "2.0.16"
 tokio = { version = "1.47.1", features = ["macros", "rt"] }

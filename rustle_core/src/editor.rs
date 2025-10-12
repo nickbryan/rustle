@@ -1,17 +1,18 @@
-use std::ops::{Add, Deref};
+use std::{ops::Deref, time::Duration};
 
 use rustle_state::{ReducerFn, Runtime, StateError, Store};
 use taffy::Style;
+use tokio::time;
 use tokio_stream::StreamExt;
 
 use crate::{
     config::Config,
     error::Error,
-    input::{Event, EventStream, Key},
+    input::{Event, EventStream, Mode, Processor},
     ui::{Canvas, Color, Component, Container, Element, TextSpan, Viewport},
 };
 
-/// The `Editor` struct represents the main component of the text editor application.
+/// The `Editor` struct represents the core of the text editor application.
 /// It encapsulates the entire state of the editor and provides the primary interface
 /// for interacting with it.
 ///
@@ -19,25 +20,19 @@ use crate::{
 /// the application state. All state changes and queries are channeled through the
 /// `Store`, ensuring a predictable and maintainable architecture.
 pub struct Editor<C: Canvas> {
-    state: Store<ReducerFn<State, Action>, State, Action>,
     canvas: C,
-    _config: Config,
+    processor: Processor,
+    state: Store<ReducerFn<State, Action>, State, Action>,
+    idle_timeout: Duration,
 }
 
 impl<C: Canvas> Editor<C> {
     pub fn new(canvas: C, runtime: &impl Runtime, config: Config) -> Self {
         Self {
-            state: Store::new(
-                root_reducer,
-                State {
-                    content: String::new(),
-                    test: String::new(),
-                    should_quit: false,
-                },
-                runtime,
-            ),
             canvas,
-            _config: config,
+            processor: Processor::new(config.bindings),
+            state: Store::new(root_reducer, State::default(), runtime),
+            idle_timeout: Duration::from_millis(config.editor.idle_timeout),
         }
     }
 
@@ -56,19 +51,36 @@ impl<C: Canvas> Editor<C> {
 
         let mut state_rx = self.state.subscribe();
 
+        let mut mode = self
+            .state
+            .select(|state: &State| state.mode.clone())
+            .await?;
+
+        // TODO: how do we clean this up?
         while !self.state.select(|state: &State| state.should_quit).await? {
             tokio::select! {
-                Some(event) = event_stream.next() => {
-                    match event {
-                        Event::KeyPressed(Key::Char(c)) => {
-                            self.state.dispatch(Action::InsertChar(c)).await?;
+                result = time::timeout(self.idle_timeout, event_stream.next()) => match result {
+                    Ok(Some(event)) => match event {
+                        Event::KeyPressed(key) => {
+                            if let Some(action) = self.processor.process(key, &mode) {
+                                if let Action::EnterMode(ref new_mode) = action {
+                                // TODO: this seems nasty, can it be cleaned up and is it needed?
+                                    mode = new_mode.clone();
+                                }
+
+                                self.state.dispatch(action).await?;
+                            }
                         }
                         Event::ReadFailed(e) => {
                             return Err(Error::Input(e.to_string()));
                         }
                         _ => (),
+                    },
+                    Err(_) => {
+                        self.processor.clear();
                     }
-                }
+                      _ => (),
+                },
                 Ok(()) = state_rx.changed() => {
                     viewport.render(state_rx.borrow().deref(), &RootComponent)
                         .map_err(Error::Ui)?;
@@ -82,16 +94,16 @@ impl<C: Canvas> Editor<C> {
 }
 
 /// The `State` struct represents the state of the editor.
-#[derive(Default, Clone, Debug, PartialEq)]
+#[derive(Default, Clone, PartialEq)]
 struct State {
-    content: String,
-    test: String,
+    mode: Mode,
     should_quit: bool,
 }
 
 /// The `Action` enum represents the actions that can be dispatched to the store.
-enum Action {
-    InsertChar(char),
+pub enum Action {
+    EnterMode(Mode),
+    Quit,
 }
 
 /// The `root_reducer` is the main reducer for the editor.
@@ -105,13 +117,8 @@ enum Action {
 #[allow(clippy::needless_pass_by_value)]
 fn root_reducer(mut state: State, action: Action) -> State {
     match action {
-        Action::InsertChar('q') => state.should_quit = true,
-        Action::InsertChar('a') => state.test.push('a'),
-        Action::InsertChar('s') => {
-            state.content = state.content.add(&state.test);
-            state.test.clear();
-        }
-        Action::InsertChar(c) => state.content.push(c),
+        Action::EnterMode(mode) => state.mode = mode,
+        Action::Quit => state.should_quit = true,
     }
 
     state
@@ -121,40 +128,26 @@ struct RootComponent;
 
 #[derive(Clone, PartialEq)]
 struct RootComponentProps {
-    content: String,
+    mode: String,
 }
 
 impl Component<&State> for RootComponent {
     type Props = RootComponentProps;
 
     fn select(&self, state: &State) -> Self::Props {
-        // The `content` string is cloned here. While this is not ideal for performance,
-        // it is a necessary trade-off for the current architecture. The rendering engine
-        // (`TextSpan`, `render_element`, etc.) is designed to work with owned `String`s
-        // for simplicity. Removing this clone would require a significant architectural
-        // refactoring to use string slices (`&str`) and lifetimes throughout the UI
-        // rendering code. This is a potential future optimization if performance becomes
-        // a bottleneck.
         RootComponentProps {
-            content: state.content.clone(),
+            mode: state.mode.to_string(),
         }
     }
 
     fn render(&self, props: Self::Props) -> Element {
         Element::Container(Box::new(Container {
             layout: Style::default(),
-            children: vec![
-                Element::Span(TextSpan {
-                    background: Color::DarkGray,
-                    color: Color::Yellow,
-                    text: props.content.clone(),
-                }),
-                Element::Span(TextSpan {
-                    background: Color::DarkGray,
-                    color: Color::Yellow,
-                    text: props.content,
-                }),
-            ],
+            children: vec![Element::Span(TextSpan {
+                background: Color::DarkGray,
+                color: Color::Yellow,
+                text: props.mode,
+            })],
         }))
     }
 }
