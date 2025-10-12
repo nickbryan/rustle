@@ -9,7 +9,7 @@ use std::{
 use anyhow::{Context, Error};
 use backtrace::Backtrace;
 use crossterm::{style::Print, terminal::LeaveAlternateScreen};
-use rustle_core::Editor;
+use rustle_core::{Config, Editor};
 use rustle_state::Runtime;
 
 use crate::backend::CrosstermCanvas;
@@ -42,7 +42,7 @@ async fn main() -> Result<(), Error> {
     let canvas = CrosstermCanvas::new(io::stdout()).context("creating crossterm canvas")?;
 
     // Create a new `Editor` instance, which is the main component of the application.
-    let mut editor = Editor::new(canvas, &TokioRuntime);
+    let mut editor = Editor::new(canvas, &TokioRuntime, Config::default());
 
     // Start the editor's event loop by consuming the event stream. The event
     // stream is a stream of input events from the terminal, such as key

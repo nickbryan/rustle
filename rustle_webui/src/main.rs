@@ -1,7 +1,7 @@
 #![warn(clippy::all, clippy::pedantic)]
 
 use anyhow::{Context, Result};
-use rustle_core::{Editor, Event, Key};
+use rustle_core::{Config, Editor, Event, Key};
 use rustle_state::Runtime;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
@@ -113,6 +113,7 @@ fn main() -> Result<()> {
         Editor::new(
             WebCanvas::new(terminal.cols(), terminal.rows(), terminal),
             &WasmRuntime,
+            Config::default(),
         )
         .consume(Box::pin(ReceiverStream::new(rx)))
         .await

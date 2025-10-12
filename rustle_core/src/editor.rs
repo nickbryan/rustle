@@ -1,10 +1,11 @@
 use std::ops::{Add, Deref};
 
 use rustle_state::{ReducerFn, Runtime, StateError, Store};
-use taffy::{Rect, Style};
+use taffy::Style;
 use tokio_stream::StreamExt;
 
 use crate::{
+    config::Config,
     error::Error,
     input::{Event, EventStream, Key},
     ui::{Canvas, Color, Component, Container, Element, TextSpan, Viewport},
@@ -20,10 +21,11 @@ use crate::{
 pub struct Editor<C: Canvas> {
     state: Store<ReducerFn<State, Action>, State, Action>,
     canvas: C,
+    _config: Config,
 }
 
 impl<C: Canvas> Editor<C> {
-    pub fn new(canvas: C, runtime: &impl Runtime) -> Self {
+    pub fn new(canvas: C, runtime: &impl Runtime, config: Config) -> Self {
         Self {
             state: Store::new(
                 root_reducer,
@@ -35,6 +37,7 @@ impl<C: Canvas> Editor<C> {
                 runtime,
             ),
             canvas,
+            _config: config,
         }
     }
 
@@ -139,15 +142,19 @@ impl Component<&State> for RootComponent {
 
     fn render(&self, props: Self::Props) -> Element {
         Element::Container(Box::new(Container {
-            layout: Style {
-                padding: Rect::length(2.0),
-                ..Default::default()
-            },
-            children: vec![Element::Span(TextSpan {
-                background: Color::DarkGray,
-                color: Color::Yellow,
-                text: props.content,
-            })],
+            layout: Style::default(),
+            children: vec![
+                Element::Span(TextSpan {
+                    background: Color::DarkGray,
+                    color: Color::Yellow,
+                    text: props.content.clone(),
+                }),
+                Element::Span(TextSpan {
+                    background: Color::DarkGray,
+                    color: Color::Yellow,
+                    text: props.content,
+                }),
+            ],
         }))
     }
 }
