@@ -1,13 +1,13 @@
 use serde::Deserialize;
 
-use crate::input::ModeKeyBindingMap;
+use crate::input::ModalKeyBindingMap;
 
 /// The `Config` struct represents the top-level configuration structure.
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
     pub editor: EditorOptions,
-    pub bindings: ModeKeyBindingMap,
+    pub bindings: ModalKeyBindingMap,
 }
 
 // This macro reads the contents of the file and places it into the

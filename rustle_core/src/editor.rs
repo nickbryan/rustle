@@ -27,7 +27,7 @@ pub struct Editor<C: Canvas> {
 }
 
 impl<C: Canvas> Editor<C> {
-    pub fn new(canvas: C, runtime: &impl Runtime, config: Config) -> Self {
+    pub fn new(config: Config, canvas: C, runtime: &impl Runtime) -> Self {
         Self {
             canvas,
             processor: Processor::new(config.bindings),

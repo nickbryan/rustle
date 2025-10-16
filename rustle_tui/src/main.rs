@@ -42,7 +42,7 @@ async fn main() -> Result<(), Error> {
     let canvas = CrosstermCanvas::new(io::stdout()).context("creating crossterm canvas")?;
 
     // Create a new `Editor` instance, which is the main component of the application.
-    let mut editor = Editor::new(canvas, &TokioRuntime, Config::default());
+    let mut editor = Editor::new(Config::default(), canvas, &TokioRuntime);
 
     // Start the editor's event loop by consuming the event stream. The event
     // stream is a stream of input events from the terminal, such as key

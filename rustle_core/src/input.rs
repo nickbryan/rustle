@@ -108,15 +108,15 @@ pub enum KeyBinding {
     Chord(KeyBindingMap),
 }
 
-pub type ModeKeyBindingMap = HashMap<Mode, KeyBindingMap>;
+pub type ModalKeyBindingMap = HashMap<Mode, KeyBindingMap>;
 
 pub(crate) struct Processor {
     key_buffer: Vec<Key>,
-    bindings: ModeKeyBindingMap,
+    bindings: ModalKeyBindingMap,
 }
 
 impl Processor {
-    pub(crate) fn new(bindings: ModeKeyBindingMap) -> Self {
+    pub(crate) fn new(bindings: ModalKeyBindingMap) -> Self {
         Self {
             key_buffer: Vec::new(),
             bindings,

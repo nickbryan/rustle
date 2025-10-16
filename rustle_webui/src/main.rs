@@ -111,9 +111,9 @@ fn main() -> Result<()> {
     // This task will run the editor's event loop, consuming the event stream from the channel.
     wasm_bindgen_futures::spawn_local(async move {
         Editor::new(
+            Config::default(),
             WebCanvas::new(terminal.cols(), terminal.rows(), terminal),
             &WasmRuntime,
-            Config::default(),
         )
         .consume(Box::pin(ReceiverStream::new(rx)))
         .await
