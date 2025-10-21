@@ -1,4 +1,4 @@
-use std::{any::Any, io::Error as IoError};
+use std::io::Error as IoError;
 
 use taffy::{AvailableSpace, Dimension, NodeId, Size, Style, TaffyError, TaffyTree};
 use thiserror::Error;
@@ -143,18 +143,13 @@ impl Frame {
         }
     }
 
-    /// The current cursor position.
-    #[must_use]
-    pub(crate) fn cursor_position(&self) -> Position {
-        self.cursor_position
-    }
-
     /// Diff the current `Frame` with the other `Frame` to get a list of changed `Cell`s.
     fn diff<'a>(&self, other: &'a Frame) -> Vec<&'a Cell> {
         debug_assert_eq!(
             self.area, other.area,
             "Frames must be of equal size to diff"
         );
+
         let front_buffer = &self.cells;
         let back_buffer = &other.cells;
 
@@ -190,7 +185,11 @@ impl Frame {
     ///
     /// # Errors
     ///
-    /// Returns an `OutOfBoundsError` if the `position` is outside the bounds of the frame.
+    /// Returns an `OutOfBoundsError` if the `position` is outside the bounds of the frame.\
+    ///
+    /// `grapheme_width` returns a `u64`, but its values are always small (typically 0, 1, or 2)
+    //   and will fit within `usize` on all common architectures. Therefore, truncation is not possible.
+    #[allow(clippy::cast_possible_truncation)]
     pub(crate) fn write(
         &mut self,
         position: Position,
@@ -213,6 +212,8 @@ impl Frame {
                 background,
             );
 
+            // #[allow(clippy::cast_possible_truncation)] when attributes
+            // being defined on expressions is no longer experimental.
             cursor += grapheme_width(grapheme) as usize;
         }
 
@@ -223,11 +224,6 @@ impl Frame {
         }
 
         Ok(())
-    }
-
-    /// Set the cursor position for the final frame render.
-    pub(crate) fn set_cursor_position(&mut self, position: Position) {
-        self.cursor_position = position;
     }
 }
 
@@ -386,12 +382,16 @@ fn render_element(
                 .map_err(|e| Error::Render(IoError::other(e)))?;
         }
         Element::Container(container) => {
-            let children = taffy.children(node_id).unwrap(); // Should not fail if layout is valid
+            let children = taffy.children(node_id)?; // Should not fail if layout is valid
 
             for (i, child) in container.children.iter().enumerate() {
                 let child_node = children[i];
                 render_element(taffy, child_node, child, frame)?;
             }
+
+            // TODO: should we be carrying cursor position through container?
+            // TODO: how do we know which container has focus to correctly take the cursor position?
+            frame.cursor_position = container.cursor_position;
         }
     }
     Ok(())

@@ -10,6 +10,7 @@ use crate::{
     error::Error,
     input::{Event, EventStream, Mode, Processor},
     ui::{Canvas, Color, Component, Container, Element, TextSpan, Viewport},
+    Position,
 };
 
 /// The `Editor` struct represents the core of the text editor application.
@@ -48,23 +49,17 @@ impl<C: Canvas> Editor<C> {
     /// - `CoreError::State`: If a critical state management error occurs, such as the actor terminating unexpectedly.
     pub async fn consume(&mut self, mut event_stream: EventStream) -> Result<(), Error> {
         let mut viewport = Viewport::new(&mut self.canvas).map_err(Error::Ui)?;
-
         let mut state_rx = self.state.subscribe();
-
-        // Keep a copy of the current mode so we don't have to re-query it every time
-        // for self.processor.process(key, &mode).
-        let mut mode = self.state.select(|state: &State| state.mode).await?;
 
         while !self.state.select(|state: &State| state.should_quit).await? {
             tokio::select! {
                 result = time::timeout(self.idle_timeout, event_stream.next()) => match result {
                     Ok(Some(event)) => match event {
                         Event::KeyPressed(key) => {
-                            if let Some(action) = self.processor.process(key, &mode) {
-                                if let Action::EnterMode(new_mode) = action {
-                                    mode = new_mode;
-                                }
-
+                            if let Some(action) = self.processor.process(
+                                key,
+                                self.state.select(|state: &State| state.mode).await?
+                            ) {
                                 self.state.dispatch(action).await?;
                             }
                         }
@@ -79,8 +74,7 @@ impl<C: Canvas> Editor<C> {
                       _ => (),
                 },
                 Ok(()) = state_rx.changed() => {
-                    viewport.render(state_rx.borrow().deref(), &RootComponent)
-                        .map_err(Error::Ui)?;
+                    viewport.render(state_rx.borrow().deref(), &RootComponent).map_err(Error::Ui)?;
                 }
                 else => return Err(StateError::ActorTerminated.into()),
             }
@@ -93,6 +87,7 @@ impl<C: Canvas> Editor<C> {
 /// The `State` struct represents the state of the editor.
 #[derive(Default, Clone, PartialEq)]
 struct State {
+    cursor_position: Position,
     mode: Mode,
     should_quit: bool,
 }
@@ -100,7 +95,16 @@ struct State {
 /// The `Action` enum represents the actions that can be dispatched to the store.
 pub enum Action {
     EnterMode(Mode),
+    MoveCursor(Movement),
     Quit,
+}
+
+#[derive(Clone, Copy)]
+pub enum Movement {
+    Next(u16),
+    Prev(u16),
+    LineNext(u16),
+    LinePrev(u16),
 }
 
 /// The `root_reducer` is the main reducer for the editor.
@@ -116,6 +120,28 @@ fn root_reducer(mut state: State, action: Action) -> State {
     match action {
         Action::EnterMode(mode) => state.mode = mode,
         Action::Quit => state.should_quit = true,
+        Action::MoveCursor(movement) => {
+            state = cursor_position_reducer(state, movement);
+        }
+    }
+
+    state
+}
+
+fn cursor_position_reducer(mut state: State, movement: Movement) -> State {
+    match movement {
+        Movement::Next(chars) => {
+            state.cursor_position.col = state.cursor_position.col.saturating_add(chars);
+        }
+        Movement::Prev(chars) => {
+            state.cursor_position.col = state.cursor_position.col.saturating_sub(chars);
+        }
+        Movement::LineNext(lines) => {
+            state.cursor_position.row = state.cursor_position.row.saturating_add(lines);
+        }
+        Movement::LinePrev(lines) => {
+            state.cursor_position.row = state.cursor_position.row.saturating_sub(lines);
+        }
     }
 
     state
@@ -126,6 +152,7 @@ struct RootComponent;
 #[derive(Clone, PartialEq)]
 struct RootComponentProps {
     mode: String,
+    cursor_position: Position,
 }
 
 impl Component<&State> for RootComponent {
@@ -134,6 +161,7 @@ impl Component<&State> for RootComponent {
     fn select(&self, state: &State) -> Self::Props {
         RootComponentProps {
             mode: state.mode.to_string(),
+            cursor_position: state.cursor_position,
         }
     }
 
@@ -145,6 +173,7 @@ impl Component<&State> for RootComponent {
                 color: Color::Yellow,
                 text: props.mode,
             })],
+            cursor_position: props.cursor_position,
         }))
     }
 }

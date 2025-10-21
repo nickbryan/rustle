@@ -1,4 +1,4 @@
-use crate::ui::values::Color;
+use crate::{ui::values::Color, Position};
 
 /// A trait for components that can be rendered in the UI.
 /// Components are responsible for selecting their props from the state and rendering an element.
@@ -29,6 +29,7 @@ pub(crate) enum Element {
 pub(crate) struct Container {
     pub layout: taffy::Style,
     pub children: Vec<Element>,
+    pub cursor_position: Position,
 }
 
 /// A text span element with a background color, foreground color, and text content.

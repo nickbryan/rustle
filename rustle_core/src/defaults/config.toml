@@ -2,8 +2,12 @@
 idle-timeout = 750
 
 [bindings.normal]
-i = "enter_insert_mode"
 ":" = { q = "quit" }
+i = "enter_insert_mode"
+h = "move_cursor_prev"
+j = "move_line_next"
+k = "move_line_prev"
+l = "move_cursor_next"
 
 [bindings.insert]
 j = { j = "enter_normal_mode" }

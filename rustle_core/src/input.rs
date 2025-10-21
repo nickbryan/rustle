@@ -7,7 +7,7 @@ use std::{
 
 use serde::Deserialize;
 
-use crate::editor::Action;
+use crate::editor::{Action, Movement};
 
 /// `Key` presses accepted by the editor.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -111,27 +111,43 @@ pub enum KeyBinding {
 pub type ModalKeyBindingMap = HashMap<Mode, KeyBindingMap>;
 
 pub(crate) struct Processor {
-    key_buffer: Vec<Key>,
     bindings: ModalKeyBindingMap,
+    key_buffer: Vec<Key>,
+    multiplier: String,
 }
 
 impl Processor {
     pub(crate) fn new(bindings: ModalKeyBindingMap) -> Self {
         Self {
-            key_buffer: Vec::new(),
             bindings,
+            key_buffer: Vec::new(),
+            multiplier: String::new(),
         }
     }
 
     pub(crate) fn clear(&mut self) {
+        // TODO: fix the multiplier getting reset on idle timeout. Do we need to tell it to wait or something?
+        // TODO: do we even need idle-timeout at all? Can we just have esc clear the current chord?
+        // TODO: do we need to support j and jj, I guess that is all the timeout would allow for. How would this work in the toml config?
+        // TODO: do we need anything other than multiplier to modify input?
+        // TODO: do we need nom parser? It loos like we could be fine without. Maybe for command mode parsing?
+        // TODO: how do we show the current chord? Would this be an action and a render component for it?
+        self.multiplier.clear();
         self.key_buffer.clear();
     }
 
-    pub(crate) fn process(&mut self, key: Key, mode: &Mode) -> Option<Action> {
+    pub(crate) fn process(&mut self, key: Key, mode: Mode) -> Option<Action> {
+        if let Key::Char(char) = key
+            && char.is_ascii_digit()
+        {
+            self.multiplier.push(char);
+            return None;
+        }
+
         self.key_buffer.push(key);
 
         let bindings = &self.bindings;
-        let mut current_map = bindings.get(mode);
+        let mut current_map = bindings.get(&mode);
 
         for key in &self.key_buffer {
             if let Some(map) = current_map {
@@ -139,7 +155,7 @@ impl Processor {
 
                 match map.get(&key_str) {
                     Some(KeyBinding::Action(action)) => {
-                        let result = parse_action(action);
+                        let result = parse_action(action, self.multiplier.parse().unwrap_or(1));
                         self.clear();
                         return result;
                     }
@@ -161,11 +177,15 @@ impl Processor {
     }
 }
 
-fn parse_action(action: &str) -> Option<Action> {
+fn parse_action(action: &str, multiplier: u16) -> Option<Action> {
     match action {
         "quit" => Some(Action::Quit),
         "enter_insert_mode" => Some(Action::EnterMode(Mode::Insert)),
         "enter_normal_mode" => Some(Action::EnterMode(Mode::Normal)),
+        "move_cursor_next" => Some(Action::MoveCursor(Movement::Next(multiplier))),
+        "move_cursor_prev" => Some(Action::MoveCursor(Movement::Prev(multiplier))),
+        "move_line_next" => Some(Action::MoveCursor(Movement::LineNext(multiplier))),
+        "move_line_prev" => Some(Action::MoveCursor(Movement::LinePrev(multiplier))),
         _ => None,
     }
 }

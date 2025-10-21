@@ -48,10 +48,10 @@ impl WebCanvas {
             return Ok(());
         }
 
-        let code = match color_code(color) {
-            Some(c) => c,
-            None => return Ok(()),
+        let Some(code) = color_code(color) else {
+            return Ok(());
         };
+
         self.buffer
             .write_all(format!("\x1B[{code}m").as_bytes())
             .context("writing color code color value to buffer")
@@ -74,10 +74,10 @@ impl WebCanvas {
             return Ok(());
         }
 
-        let mut code = match color_code(color) {
-            Some(c) => c,
-            None => return Ok(()),
+        let Some(mut code) = color_code(color) else {
+            return Ok(());
         };
+
         if code > 0 {
             code += 10;
         }
