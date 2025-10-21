@@ -82,7 +82,7 @@ pub enum Event {
 /// `EventStream` is an asynchronous tokio stream of input Events.
 pub type EventStream = Pin<Box<dyn tokio_stream::Stream<Item = Event> + Send>>;
 
-#[derive(Deserialize, Eq, Hash, PartialEq, Default, Clone)]
+#[derive(Deserialize, Eq, Hash, PartialEq, Default, Copy, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
     #[default]
@@ -130,24 +130,21 @@ impl Processor {
     pub(crate) fn process(&mut self, key: Key, mode: &Mode) -> Option<Action> {
         self.key_buffer.push(key);
 
-        // TODO: does this need to be cloned?
-        let mut current_map_opt = self.bindings.get(mode).cloned();
+        let bindings = &self.bindings;
+        let mut current_map = bindings.get(mode);
 
-        // TODO: is this efficient?
-        // TODO: can we simplify this block with self.key_buffer.iter().map or something?
-        for i in 0..self.key_buffer.len() {
-            let key = &self.key_buffer[i];
-
-            if let Some(current_map) = current_map_opt {
+        for key in &self.key_buffer {
+            if let Some(map) = current_map {
                 let key_str = key.to_string();
 
-                match current_map.get(&key_str) {
+                match map.get(&key_str) {
                     Some(KeyBinding::Action(action)) => {
+                        let result = parse_action(action);
                         self.clear();
-                        return parse_action(action);
+                        return result;
                     }
                     Some(KeyBinding::Chord(next_map)) => {
-                        current_map_opt = Some(next_map.clone());
+                        current_map = Some(next_map);
                     }
                     None => {
                         self.clear();

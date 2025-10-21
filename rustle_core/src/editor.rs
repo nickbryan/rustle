@@ -51,21 +51,18 @@ impl<C: Canvas> Editor<C> {
 
         let mut state_rx = self.state.subscribe();
 
-        let mut mode = self
-            .state
-            .select(|state: &State| state.mode.clone())
-            .await?;
+        // Keep a copy of the current mode so we don't have to re-query it every time
+        // for self.processor.process(key, &mode).
+        let mut mode = self.state.select(|state: &State| state.mode).await?;
 
-        // TODO: how do we clean this up?
         while !self.state.select(|state: &State| state.should_quit).await? {
             tokio::select! {
                 result = time::timeout(self.idle_timeout, event_stream.next()) => match result {
                     Ok(Some(event)) => match event {
                         Event::KeyPressed(key) => {
                             if let Some(action) = self.processor.process(key, &mode) {
-                                if let Action::EnterMode(ref new_mode) = action {
-                                // TODO: this seems nasty, can it be cleaned up and is it needed?
-                                    mode = new_mode.clone();
+                                if let Action::EnterMode(new_mode) = action {
+                                    mode = new_mode;
                                 }
 
                                 self.state.dispatch(action).await?;
