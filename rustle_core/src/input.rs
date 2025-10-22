@@ -112,19 +112,18 @@ pub type ModalKeyBindingMap = HashMap<Mode, KeyBindingMap>;
 
 // TODO: do we need nom parser? It looks like we could be fine without. Maybe for command mode parsing?
 // TODO: how do we show the current chord / pending unput? Would this be an action and a render component for it?
-// TODO: is there a better name than Processor for this? Are we encapsulating the domain concept correctly?
-pub(crate) struct KeyMappingEngine {
+pub(crate) struct Resolver {
     bindings: ModalKeyBindingMap,
-    key_buffer: Vec<Key>,
-    multiplier: Option<u32>,
+    buffer: Vec<Key>,
+    multiplier: u32,
 }
 
-impl KeyMappingEngine {
+impl Resolver {
     pub(crate) fn new(bindings: ModalKeyBindingMap) -> Self {
         Self {
             bindings,
-            key_buffer: Vec::new(),
-            multiplier: None,
+            buffer: Vec::new(),
+            multiplier: 0,
         }
     }
 
@@ -133,39 +132,42 @@ impl KeyMappingEngine {
         // TODO: do we even need idle-timeout at all? Can we just have esc clear the current chord? Or maybe if jj was mapped and jk was pressed then char j and k would be returned as actions, we would need to be able to return an action that nests multiple actions for this.
         // TODO: I guess an idle timeout is mainly for situations like in insert mode when we want to exit with jj but still want to be able to input j as a character. How would this work in the toml config? I don't think we can have an entry for j = "action" and another for j = { j = "action" } in toml.
         // TODO: how do we end a word with j and also exit insert mode? so boj followed by j would exit insert mode and then j would not be inserted.
-        self.multiplier = None;
-        self.key_buffer.clear();
+        self.multiplier = 0;
+        self.buffer.clear();
     }
 
-    pub(crate) fn process(&mut self, key: Key, mode: Mode) -> Option<Action> {
+    pub(crate) fn resolve(&mut self, key: Key, mode: Mode) -> Option<Action> {
         if let Key::Char(char) = key
             && char.is_ascii_digit()
             // 0 is a valid multiplier, but not the first
             // character in a multiplier, this can be
             // reserved for an action.
-            && (char != '0' || self.multiplier.is_some())
+            && (char != '0' || self.multiplier != 0)
         {
-            let multiplier_val = self.multiplier.get_or_insert(0);
-
-            *multiplier_val = multiplier_val
-                .saturating_mul(10)
-                .saturating_add(char.to_digit(10).unwrap()); // unwrap() is safe due to is_ascii_digit().
+            let digit = char.to_digit(10).unwrap(); // unwrap() is safe due to is_ascii_digit().
+            self.multiplier = self.multiplier.saturating_mul(10).saturating_add(digit);
 
             return None;
         }
 
-        self.key_buffer.push(key);
+        self.buffer.push(key);
 
         let bindings = &self.bindings;
         let mut current_map = bindings.get(&mode);
 
-        for key in &self.key_buffer {
+        for key in &self.buffer {
             if let Some(map) = current_map {
                 let key_str = key.to_string();
 
+                let multiplier = if self.multiplier == 0 {
+                    1
+                } else {
+                    self.multiplier
+                };
+
                 match map.get(&key_str) {
                     Some(KeyBinding::Action(action)) => {
-                        let result = parse_action(action, self.multiplier.unwrap_or(1));
+                        let result = parse_action(action, multiplier);
                         self.reset();
                         return result;
                     }

@@ -8,7 +8,7 @@ use tokio_stream::StreamExt;
 use crate::{
     config::Config,
     error::Error,
-    input::{Event, EventStream, KeyMappingEngine, Mode},
+    input::{Event, EventStream, Mode, Resolver},
     ui::{Canvas, Color, Component, Container, Element, TextSpan, Viewport},
     Position,
 };
@@ -22,7 +22,7 @@ use crate::{
 /// `Store`, ensuring a predictable and maintainable architecture.
 pub struct Editor<C: Canvas> {
     canvas: C,
-    processor: KeyMappingEngine,
+    resolver: Resolver,
     state: Store<ReducerFn<State, Action>, State, Action>,
     idle_timeout: Duration,
 }
@@ -31,7 +31,7 @@ impl<C: Canvas> Editor<C> {
     pub fn new(config: Config, canvas: C, runtime: &impl Runtime) -> Self {
         Self {
             canvas,
-            processor: KeyMappingEngine::new(config.bindings),
+            resolver: Resolver::new(config.bindings),
             state: Store::new(root_reducer, State::default(), runtime),
             idle_timeout: Duration::from_millis(config.editor.idle_timeout),
         }
@@ -56,7 +56,7 @@ impl<C: Canvas> Editor<C> {
                 result = time::timeout(self.idle_timeout, event_stream.next()) => match result {
                     Ok(Some(event)) => match event {
                         Event::KeyPressed(key) => {
-                            if let Some(action) = self.processor.process(
+                            if let Some(action) = self.resolver.resolve(
                                 key,
                                 self.state.select(|state: &State| state.mode).await?
                             ) {
@@ -69,7 +69,7 @@ impl<C: Canvas> Editor<C> {
                         _ => (),
                     },
                     Err(_) => {
-                        self.processor.reset();
+                        self.resolver.reset();
                     }
                       _ => (),
                 },
