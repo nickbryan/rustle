@@ -110,37 +110,47 @@ pub enum KeyBinding {
 
 pub type ModalKeyBindingMap = HashMap<Mode, KeyBindingMap>;
 
-pub(crate) struct Processor {
+// TODO: do we need nom parser? It looks like we could be fine without. Maybe for command mode parsing?
+// TODO: how do we show the current chord / pending unput? Would this be an action and a render component for it?
+// TODO: is there a better name than Processor for this? Are we encapsulating the domain concept correctly?
+pub(crate) struct KeyMappingEngine {
     bindings: ModalKeyBindingMap,
     key_buffer: Vec<Key>,
-    multiplier: String,
+    multiplier: Option<u32>,
 }
 
-impl Processor {
+impl KeyMappingEngine {
     pub(crate) fn new(bindings: ModalKeyBindingMap) -> Self {
         Self {
             bindings,
             key_buffer: Vec::new(),
-            multiplier: String::new(),
+            multiplier: None,
         }
     }
 
-    pub(crate) fn clear(&mut self) {
-        // TODO: fix the multiplier getting reset on idle timeout. Do we need to tell it to wait or something?
-        // TODO: do we even need idle-timeout at all? Can we just have esc clear the current chord?
-        // TODO: do we need to support j and jj, I guess that is all the timeout would allow for. How would this work in the toml config?
-        // TODO: do we need anything other than multiplier to modify input?
-        // TODO: do we need nom parser? It loos like we could be fine without. Maybe for command mode parsing?
-        // TODO: how do we show the current chord? Would this be an action and a render component for it?
-        self.multiplier.clear();
+    pub(crate) fn reset(&mut self) {
+        // TODO: fix the multiplier getting reset on idle timeout in editor.rs Editor.consume method. Do we need to tell it to wait or something?
+        // TODO: do we even need idle-timeout at all? Can we just have esc clear the current chord? Or maybe if jj was mapped and jk was pressed then char j and k would be returned as actions, we would need to be able to return an action that nests multiple actions for this.
+        // TODO: I guess an idle timeout is mainly for situations like in insert mode when we want to exit with jj but still want to be able to input j as a character. How would this work in the toml config? I don't think we can have an entry for j = "action" and another for j = { j = "action" } in toml.
+        // TODO: how do we end a word with j and also exit insert mode? so boj followed by j would exit insert mode and then j would not be inserted.
+        self.multiplier = None;
         self.key_buffer.clear();
     }
 
     pub(crate) fn process(&mut self, key: Key, mode: Mode) -> Option<Action> {
         if let Key::Char(char) = key
             && char.is_ascii_digit()
+            // 0 is a valid multiplier, but not the first
+            // character in a multiplier, this can be
+            // reserved for an action.
+            && (char != '0' || self.multiplier.is_some())
         {
-            self.multiplier.push(char);
+            let multiplier_val = self.multiplier.get_or_insert(0);
+
+            *multiplier_val = multiplier_val
+                .saturating_mul(10)
+                .saturating_add(char.to_digit(10).unwrap()); // unwrap() is safe due to is_ascii_digit().
+
             return None;
         }
 
@@ -155,20 +165,20 @@ impl Processor {
 
                 match map.get(&key_str) {
                     Some(KeyBinding::Action(action)) => {
-                        let result = parse_action(action, self.multiplier.parse().unwrap_or(1));
-                        self.clear();
+                        let result = parse_action(action, self.multiplier.unwrap_or(1));
+                        self.reset();
                         return result;
                     }
                     Some(KeyBinding::Chord(next_map)) => {
                         current_map = Some(next_map);
                     }
                     None => {
-                        self.clear();
+                        self.reset();
                         return None;
                     }
                 }
             } else {
-                self.clear();
+                self.reset();
                 return None;
             }
         }
@@ -177,7 +187,7 @@ impl Processor {
     }
 }
 
-fn parse_action(action: &str, multiplier: u16) -> Option<Action> {
+fn parse_action(action: &str, multiplier: u32) -> Option<Action> {
     match action {
         "quit" => Some(Action::Quit),
         "enter_insert_mode" => Some(Action::EnterMode(Mode::Insert)),

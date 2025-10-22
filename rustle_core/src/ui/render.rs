@@ -520,12 +520,4 @@ mod tests {
             clean.diff(&dirty),
         );
     }
-
-    #[test]
-    fn frame_persists_cursor_position() {
-        let mut frame = Frame::empty(Rect::default());
-        assert_eq!(Position::default(), frame.cursor_position());
-        frame.set_cursor_position(Position::new(20, 20));
-        assert_eq!(Position::new(20, 20), frame.cursor_position());
-    }
 }

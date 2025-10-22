@@ -8,7 +8,7 @@ use tokio_stream::StreamExt;
 use crate::{
     config::Config,
     error::Error,
-    input::{Event, EventStream, Mode, Processor},
+    input::{Event, EventStream, KeyMappingEngine, Mode},
     ui::{Canvas, Color, Component, Container, Element, TextSpan, Viewport},
     Position,
 };
@@ -22,7 +22,7 @@ use crate::{
 /// `Store`, ensuring a predictable and maintainable architecture.
 pub struct Editor<C: Canvas> {
     canvas: C,
-    processor: Processor,
+    processor: KeyMappingEngine,
     state: Store<ReducerFn<State, Action>, State, Action>,
     idle_timeout: Duration,
 }
@@ -31,7 +31,7 @@ impl<C: Canvas> Editor<C> {
     pub fn new(config: Config, canvas: C, runtime: &impl Runtime) -> Self {
         Self {
             canvas,
-            processor: Processor::new(config.bindings),
+            processor: KeyMappingEngine::new(config.bindings),
             state: Store::new(root_reducer, State::default(), runtime),
             idle_timeout: Duration::from_millis(config.editor.idle_timeout),
         }
@@ -69,7 +69,7 @@ impl<C: Canvas> Editor<C> {
                         _ => (),
                     },
                     Err(_) => {
-                        self.processor.clear();
+                        self.processor.reset();
                     }
                       _ => (),
                 },
@@ -101,10 +101,10 @@ pub enum Action {
 
 #[derive(Clone, Copy)]
 pub enum Movement {
-    Next(u16),
-    Prev(u16),
-    LineNext(u16),
-    LinePrev(u16),
+    Next(u32),
+    Prev(u32),
+    LineNext(u32),
+    LinePrev(u32),
 }
 
 /// The `root_reducer` is the main reducer for the editor.
@@ -131,16 +131,28 @@ fn root_reducer(mut state: State, action: Action) -> State {
 fn cursor_position_reducer(mut state: State, movement: Movement) -> State {
     match movement {
         Movement::Next(chars) => {
-            state.cursor_position.col = state.cursor_position.col.saturating_add(chars);
+            state.cursor_position.col = state
+                .cursor_position
+                .col
+                .saturating_add(u16::try_from(chars).expect("temporary for testing"));
         }
         Movement::Prev(chars) => {
-            state.cursor_position.col = state.cursor_position.col.saturating_sub(chars);
+            state.cursor_position.col = state
+                .cursor_position
+                .col
+                .saturating_sub(u16::try_from(chars).expect("temporary for testing"));
         }
         Movement::LineNext(lines) => {
-            state.cursor_position.row = state.cursor_position.row.saturating_add(lines);
+            state.cursor_position.row = state
+                .cursor_position
+                .row
+                .saturating_add(u16::try_from(lines).expect("temporary for testing"));
         }
         Movement::LinePrev(lines) => {
-            state.cursor_position.row = state.cursor_position.row.saturating_sub(lines);
+            state.cursor_position.row = state
+                .cursor_position
+                .row
+                .saturating_sub(u16::try_from(lines).expect("temporary for testing"));
         }
     }
 
