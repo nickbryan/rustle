@@ -137,54 +137,57 @@ impl Resolver {
     }
 
     pub(crate) fn resolve(&mut self, key: Key, mode: Mode) -> Option<Action> {
-        if let Key::Char(char) = key
-            && char.is_ascii_digit()
-            // 0 is a valid multiplier, but not the first
-            // character in a multiplier, this can be
-            // reserved for an action.
-            && (char != '0' || self.multiplier != 0)
-        {
-            let digit = char.to_digit(10).unwrap(); // unwrap() is safe due to is_ascii_digit().
-            self.multiplier = self.multiplier.saturating_mul(10).saturating_add(digit);
-
+        if let Some(multiplier) = parse_multiplier(self.multiplier, key) {
+            self.multiplier = multiplier;
             return None;
         }
 
         self.buffer.push(key);
 
-        let bindings = &self.bindings;
-        let mut current_map = bindings.get(&mode);
+        let mut current_bindings = self.bindings.get(&mode);
 
         for key in &self.buffer {
-            if let Some(map) = current_map {
-                let key_str = key.to_string();
-
-                let multiplier = if self.multiplier == 0 {
-                    1
-                } else {
-                    self.multiplier
-                };
-
-                match map.get(&key_str) {
-                    Some(KeyBinding::Action(action)) => {
-                        let result = parse_action(action, multiplier);
-                        self.reset();
-                        return result;
-                    }
-                    Some(KeyBinding::Chord(next_map)) => {
-                        current_map = Some(next_map);
-                    }
-                    None => {
-                        self.reset();
-                        return None;
-                    }
-                }
-            } else {
+            let Some(map) = current_bindings else {
                 self.reset();
                 return None;
+            };
+
+            match map.get(&key.to_string()) {
+                Some(KeyBinding::Action(action)) => {
+                    let multiplier = if self.multiplier == 0 {
+                        1
+                    } else {
+                        self.multiplier
+                    };
+                    let result = parse_action(action, multiplier);
+                    self.reset();
+                    return result;
+                }
+                Some(KeyBinding::Chord(next_map)) => {
+                    current_bindings = Some(next_map);
+                }
+                None => {
+                    self.reset();
+                    return None;
+                }
             }
         }
 
+        None
+    }
+}
+
+fn parse_multiplier(current_value: u32, key: Key) -> Option<u32> {
+    if let Key::Char(char) = key
+        && char.is_ascii_digit()
+        // 0 is a valid multiplier, but not the first
+        // character in a multiplier, this can be
+        // reserved for an action.
+        && (char != '0' || current_value != 0)
+    {
+        let digit = char.to_digit(10).unwrap(); // unwrap() is safe due to is_ascii_digit().
+        Some(current_value.saturating_mul(10).saturating_add(digit))
+    } else {
         None
     }
 }
