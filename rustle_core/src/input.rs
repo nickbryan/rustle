@@ -110,8 +110,12 @@ pub enum KeyBinding {
 
 pub type ModalKeyBindingMap = HashMap<Mode, KeyBindingMap>;
 
-// TODO: do we need nom parser? It looks like we could be fine without. Maybe for command mode parsing?
-// TODO: how do we show the current chord / pending unput? Would this be an action and a render component for it?
+pub(crate) enum Resolution {
+    Match(Action),
+    NoMatch,
+    Pending,
+}
+
 pub(crate) struct Resolver {
     bindings: ModalKeyBindingMap,
     buffer: Vec<Key>,
@@ -128,18 +132,14 @@ impl Resolver {
     }
 
     pub(crate) fn reset(&mut self) {
-        // TODO: fix the multiplier getting reset on idle timeout in editor.rs Editor.consume method. Do we need to tell it to wait or something?
-        // TODO: do we even need idle-timeout at all? Can we just have esc clear the current chord? Or maybe if jj was mapped and jk was pressed then char j and k would be returned as actions, we would need to be able to return an action that nests multiple actions for this.
-        // TODO: I guess an idle timeout is mainly for situations like in insert mode when we want to exit with jj but still want to be able to input j as a character. How would this work in the toml config? I don't think we can have an entry for j = "action" and another for j = { j = "action" } in toml.
-        // TODO: how do we end a word with j and also exit insert mode? so boj followed by j would exit insert mode and then j would not be inserted.
-        self.multiplier = 0;
         self.buffer.clear();
+        self.multiplier = 0;
     }
 
-    pub(crate) fn resolve(&mut self, key: Key, mode: Mode) -> Option<Action> {
+    pub(crate) fn resolve(&mut self, key: Key, mode: Mode) -> Resolution {
         if let Some(multiplier) = parse_multiplier(self.multiplier, key) {
             self.multiplier = multiplier;
-            return None;
+            return Resolution::Pending;
         }
 
         self.buffer.push(key);
@@ -148,8 +148,7 @@ impl Resolver {
 
         for key in &self.buffer {
             let Some(map) = current_bindings else {
-                self.reset();
-                return None;
+                return Resolution::NoMatch;
             };
 
             match map.get(&key.to_string()) {
@@ -161,19 +160,25 @@ impl Resolver {
                     };
                     let result = parse_action(action, multiplier);
                     self.reset();
-                    return result;
+                    return Resolution::Match(result.unwrap());
                 }
                 Some(KeyBinding::Chord(next_map)) => {
                     current_bindings = Some(next_map);
                 }
                 None => {
-                    self.reset();
-                    return None;
+                    return Resolution::NoMatch;
                 }
             }
         }
 
-        None
+        Resolution::Pending
+    }
+
+    pub(crate) fn drain_buffer(&mut self) -> String {
+        self.buffer
+            .drain(..)
+            .map(|key: Key| key.to_string())
+            .collect()
     }
 }
 

@@ -68,7 +68,7 @@ impl Rect {
 
     /// Create a new Rect with a set Position.
     #[must_use]
-    pub(crate) fn positioned(width: u16, height: u16, col: u16, row: u16) -> Self {
+    pub(crate) fn _positioned(width: u16, height: u16, col: u16, row: u16) -> Self {
         Self {
             width,
             height,
@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn rect_positioned_sets_position() {
-        let r = Rect::positioned(0, 0, 10, 20);
+        let r = Rect::_positioned(0, 0, 10, 20);
         assert_eq!(r.position.col, 10);
         assert_eq!(r.position.row, 20);
     }
@@ -150,42 +150,42 @@ mod tests {
 
     #[test]
     fn rect_left_returns_leftmost_possible_value() {
-        assert_eq!(Rect::positioned(5, 10, 0, 0).left(), 0);
+        assert_eq!(Rect::_positioned(5, 10, 0, 0).left(), 0);
     }
 
     #[test]
     fn rect_left_returns_leftmost_possible_value_including_offset() {
-        assert_eq!(Rect::positioned(5, 10, 10, 0).left(), 10);
+        assert_eq!(Rect::_positioned(5, 10, 10, 0).left(), 10);
     }
 
     #[test]
     fn rect_right_returns_rightmost_possible_value() {
-        assert_eq!(Rect::positioned(5, 10, 0, 0).right(), 4);
+        assert_eq!(Rect::_positioned(5, 10, 0, 0).right(), 4);
     }
 
     #[test]
     fn rect_right_returns_rightmost_possible_value_including_offset() {
-        assert_eq!(Rect::positioned(5, 10, 20, 25).right(), 24);
+        assert_eq!(Rect::_positioned(5, 10, 20, 25).right(), 24);
     }
 
     #[test]
     fn rect_top_returns_topmost_possible_value() {
-        assert_eq!(Rect::positioned(5, 10, 0, 0).top(), 0);
+        assert_eq!(Rect::_positioned(5, 10, 0, 0).top(), 0);
     }
 
     #[test]
     fn rect_top_returns_topmost_possible_value_including_offset() {
-        assert_eq!(Rect::positioned(5, 10, 0, 12).top(), 12);
+        assert_eq!(Rect::_positioned(5, 10, 0, 12).top(), 12);
     }
 
     #[test]
     fn rect_bottom_returns_bottommost_possible_value() {
-        assert_eq!(Rect::positioned(5, 10, 0, 0).bottom(), 9);
+        assert_eq!(Rect::_positioned(5, 10, 0, 0).bottom(), 9);
     }
 
     #[test]
     fn rect_bottom_returns_bottommost_possible_value_including_offset() {
-        assert_eq!(Rect::positioned(5, 10, 20, 25).bottom(), 34);
+        assert_eq!(Rect::_positioned(5, 10, 20, 25).bottom(), 34);
     }
 
     #[test]
@@ -200,7 +200,7 @@ mod tests {
         assert!(!r.contains(Position::new(10, 9)));
         assert!(!r.contains(Position::new(9, 10)));
 
-        let r = Rect::positioned(10, 10, 10, 10);
+        let r = Rect::_positioned(10, 10, 10, 10);
         assert!(!r.contains(Position::new(20, 20)));
     }
 }

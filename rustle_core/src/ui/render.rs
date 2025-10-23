@@ -255,7 +255,7 @@ impl<'a, C: Canvas> Viewport<'a, C> {
 
     /// The area represented by the viewport.
     #[must_use]
-    pub(crate) fn area(&self) -> Rect {
+    pub(crate) fn _area(&self) -> Rect {
         self.area
     }
 

@@ -1,5 +1,5 @@
 [editor]
-idle-timeout = 750
+idle-timeout = 200
 
 [bindings.normal]
 ":" = { q = "quit" }

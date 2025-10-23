@@ -8,7 +8,7 @@ use tokio_stream::StreamExt;
 use crate::{
     config::Config,
     error::Error,
-    input::{Event, EventStream, Mode, Resolver},
+    input::{Event, EventStream, Mode, Resolution, Resolver},
     ui::{Canvas, Color, Component, Container, Element, TextSpan, Viewport},
     Position,
 };
@@ -50,28 +50,48 @@ impl<C: Canvas> Editor<C> {
     pub async fn consume(&mut self, mut event_stream: EventStream) -> Result<(), Error> {
         let mut viewport = Viewport::new(&mut self.canvas).map_err(Error::Ui)?;
         let mut state_rx = self.state.subscribe();
+        let mut pending_timeout = false;
 
         while !self.state.select(|state: &State| state.should_quit).await? {
+            let timeout = if pending_timeout {
+                self.idle_timeout
+            } else {
+                Duration::from_secs(u64::MAX)
+            };
+
             tokio::select! {
-                result = time::timeout(self.idle_timeout, event_stream.next()) => match result {
-                    Ok(Some(event)) => match event {
-                        Event::KeyPressed(key) => {
-                            if let Some(action) = self.resolver.resolve(
-                                key,
-                                self.state.select(|state: &State| state.mode).await?
-                            ) {
+                result = time::timeout(timeout, event_stream.next()) => match result {
+                    Ok(Some(Event::KeyPressed(key))) => {
+                        let mode = self.state.select(|state: &State| state.mode).await?;
+                        let resolution = self.resolver.resolve(key, mode);
+
+                        match resolution {
+                            Resolution::Match(action) => {
+                                pending_timeout = false;
                                 self.state.dispatch(action).await?;
                             }
+                            Resolution::Pending => {
+                                if mode == Mode::Insert {
+                                    pending_timeout = true;
+                                }
+                            }
+                            Resolution::NoMatch => {
+                                if mode == Mode::Insert {
+                                    let text = self.resolver.drain_buffer();
+                                    self.state.dispatch(Action::InsertString(text)).await?;
+                                }
+                                self.resolver.reset();
+                                pending_timeout = false;
+                            }
                         }
-                        Event::ReadFailed(e) => {
-                            return Err(Error::Input(e.to_string()));
-                        }
-                        _ => (),
-                    },
-                    Err(_) => {
-                        self.resolver.reset();
                     }
-                      _ => (),
+                    Err(_) => { // Timeout.
+                        let text = self.resolver.drain_buffer();
+                        self.state.dispatch(Action::InsertString(text)).await?;
+                        self.resolver.reset();
+                        pending_timeout = false;
+                    }
+                    _ => (),
                 },
                 Ok(()) = state_rx.changed() => {
                     viewport.render(state_rx.borrow().deref(), &RootComponent).map_err(Error::Ui)?;
@@ -90,6 +110,7 @@ struct State {
     cursor_position: Position,
     mode: Mode,
     should_quit: bool,
+    buffer: String,
 }
 
 /// The `Action` enum represents the actions that can be dispatched to the store.
@@ -97,6 +118,8 @@ pub enum Action {
     EnterMode(Mode),
     MoveCursor(Movement),
     Quit,
+
+    InsertString(String),
 }
 
 #[derive(Clone, Copy)]
@@ -118,10 +141,17 @@ pub enum Movement {
 #[allow(clippy::needless_pass_by_value)]
 fn root_reducer(mut state: State, action: Action) -> State {
     match action {
-        Action::EnterMode(mode) => state.mode = mode,
+        Action::EnterMode(mode) => {
+            state.mode = mode;
+            state.buffer.clear();
+        }
         Action::Quit => state.should_quit = true,
         Action::MoveCursor(movement) => {
             state = cursor_position_reducer(state, movement);
+        }
+
+        Action::InsertString(text) => {
+            state.buffer.push_str(&text);
         }
     }
 
@@ -165,6 +195,7 @@ struct RootComponent;
 struct RootComponentProps {
     mode: String,
     cursor_position: Position,
+    buffer: String,
 }
 
 impl Component<&State> for RootComponent {
@@ -174,17 +205,25 @@ impl Component<&State> for RootComponent {
         RootComponentProps {
             mode: state.mode.to_string(),
             cursor_position: state.cursor_position,
+            buffer: state.buffer.clone(),
         }
     }
 
     fn render(&self, props: Self::Props) -> Element {
         Element::Container(Box::new(Container {
             layout: Style::default(),
-            children: vec![Element::Span(TextSpan {
-                background: Color::DarkGray,
-                color: Color::Yellow,
-                text: props.mode,
-            })],
+            children: vec![
+                Element::Span(TextSpan {
+                    background: Color::DarkGray,
+                    color: Color::Yellow,
+                    text: props.mode + " ",
+                }),
+                Element::Span(TextSpan {
+                    background: Color::DarkGray,
+                    color: Color::White,
+                    text: props.buffer,
+                }),
+            ],
             cursor_position: props.cursor_position,
         }))
     }
