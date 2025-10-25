@@ -5,10 +5,12 @@ use thiserror::Error;
 use unicode_display_width::width as grapheme_width;
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::ui::{
-    component::{Component, Element},
-    error::Error,
-    values::{Color, Position, Rect},
+use crate::{
+    editor::State,
+    ui::{
+        error::Error,
+        values::{Color, Position, Rect},
+    },
 };
 
 /// Canvas is an interface to the ui. It could be the terminal or web ui.
@@ -85,6 +87,8 @@ impl Cell {
     /// Reset the Cell's symbol to an empty space.
     pub(crate) fn reset(&mut self) {
         self.symbol = " ".into();
+        self.foreground = Color::Reset;
+        self.background = Color::Reset;
     }
 
     /// Returns the Cell's symbol.
@@ -120,7 +124,6 @@ struct OutOfBoundsError;
 struct Frame {
     area: Rect,
     cells: Vec<Cell>,
-    cursor_position: Position,
 }
 
 impl Frame {
@@ -136,11 +139,7 @@ impl Frame {
             }
         }
 
-        Self {
-            cells,
-            area,
-            cursor_position: Position::default(),
-        }
+        Self { cells, area }
     }
 
     /// Diff the current `Frame` with the other `Frame` to get a list of changed `Cell`s.
@@ -227,13 +226,39 @@ impl Frame {
     }
 }
 
+/// Represents a UI element that can be rendered.
+pub(crate) enum Element {
+    Span(TextSpan),
+    // The `Container` variant is wrapped in a `Box` to avoid a large enum variant.
+    // The `Container` struct is significantly larger than other variants, so boxing it
+    // reduces the overall size of the `Element` enum by storing the `Container` on the
+    // heap. This improves memory efficiency as the enum only needs to store a pointer
+    // instead of the full `Container` data.
+    Container(Box<Container>),
+}
+
+/// A container element that can hold other elements.
+/// The layout of the container and its children is determined by the `layout` and `children` fields.
+pub(crate) struct Container {
+    pub style: Style,
+    pub children: Vec<Element>,
+}
+
+/// A text span element with a background color, foreground color, and text content.
+pub(crate) struct TextSpan {
+    pub(crate) background: Color,
+    pub(crate) color: Color,
+    pub(crate) text: String,
+}
+
 /// The area of the screen that we can draw to. The Viewport is responsible for handling
 /// interactions with the `Canvas` and drawing.
 pub(crate) struct Viewport<'a, C: Canvas> {
     area: Rect,
     canvas: &'a mut C,
-    frames: [Frame; 2],
     current_frame_idx: usize,
+    frames: [Frame; 2],
+    taffy: TaffyTree,
 }
 
 impl<'a, C: Canvas> Viewport<'a, C> {
@@ -248,19 +273,13 @@ impl<'a, C: Canvas> Viewport<'a, C> {
         Ok(Self {
             area,
             canvas,
-            frames: [Frame::empty(area), Frame::empty(area)],
             current_frame_idx: 0,
+            frames: [Frame::empty(area), Frame::empty(area)],
+            taffy: TaffyTree::new(),
         })
     }
 
-    /// The area represented by the viewport.
-    #[must_use]
-    pub(crate) fn _area(&self) -> Rect {
-        self.area
-    }
-
-    /// Draw the current `Frame` to the screen. This will call the given callback allowing the caller
-    /// to define render order and cursor position. `Frame` swapping and diff are handled here to
+    /// Draw the current `Frame` to the screen. `Frame` swapping and diff are handled here to
     /// ensure that only the required screen cells are updated.
     ///
     /// # Errors
@@ -269,31 +288,33 @@ impl<'a, C: Canvas> Viewport<'a, C> {
     ///
     /// - `Error::Render`: If there is an I/O error when interacting with the `Canvas`.
     /// - `Error::Layout`: If the layout computation fails.
-    pub(crate) fn render<S, RC: Component<S> + 'static>(
-        &mut self,
-        state: S,
-        root_component: &RC,
-    ) -> Result<(), Error> {
+    pub(crate) fn redraw<F>(&mut self, state: &State, render: F) -> Result<(), Error>
+    where
+        F: Fn(&State, Rect) -> Element,
+    {
         self.canvas.hide_cursor().map_err(Error::Render)?;
 
-        let element = root_component.render(root_component.select(state));
+        self.taffy.clear();
 
-        let mut taffy = TaffyTree::new();
-        let node = element_to_node(&mut taffy, &element)?;
+        let element = render(state, self.area);
 
-        let frame = &mut self.frames[self.current_frame_idx];
+        let node = element_to_node(&mut self.taffy, &element)?;
 
-        taffy.compute_layout(
+        self.taffy.compute_layout(
             node,
             Size {
-                width: AvailableSpace::Definite(f32::from(frame.area.width)),
-                height: AvailableSpace::Definite(f32::from(frame.area.height)),
+                width: AvailableSpace::Definite(f32::from(self.area.width)),
+                height: AvailableSpace::Definite(f32::from(self.area.height)),
             },
         )?;
 
-        render_element(&mut taffy, node, &element, frame)?;
-
-        let next_cursor_pos = self.frames[self.current_frame_idx].cursor_position;
+        render_element(
+            &mut self.taffy,
+            node,
+            &element,
+            &mut self.frames[self.current_frame_idx],
+            self.area.position,
+        )?;
 
         let previous_frame = &self.frames[1 - self.current_frame_idx];
         let changes = previous_frame.diff(&self.frames[self.current_frame_idx]);
@@ -303,7 +324,7 @@ impl<'a, C: Canvas> Viewport<'a, C> {
             .map_err(Error::Render)?;
 
         self.canvas
-            .position_cursor(next_cursor_pos.row, next_cursor_pos.col)
+            .position_cursor(state.cursor_position.row, state.cursor_position.col)
             .map_err(Error::Render)?;
 
         self.canvas.show_cursor().map_err(Error::Render)?;
@@ -319,7 +340,7 @@ impl<'a, C: Canvas> Viewport<'a, C> {
     }
 }
 
-impl<G: Canvas> Drop for Viewport<'_, G> {
+impl<C: Canvas> Drop for Viewport<'_, C> {
     /// When the Viewport goes out of scope (application has ended) we want to ensure that the
     /// screen is cleared and flushed to leave the user with a clean terminal.
     fn drop(&mut self) {
@@ -337,15 +358,13 @@ fn element_to_node(taffy: &mut TaffyTree, element: &Element) -> Result<NodeId, T
             // converting the text length to `f32` is not critical for the layout calculation
             // in this context.
             #[allow(clippy::cast_precision_loss)]
-            let style = Style {
+            taffy.new_leaf(Style {
                 size: Size {
                     width: Dimension::length(span.text.len() as f32),
                     height: Dimension::length(1.0),
                 },
                 ..Default::default()
-            };
-
-            taffy.new_leaf(style)
+            })
         }
         Element::Container(container) => {
             let children = container
@@ -354,7 +373,7 @@ fn element_to_node(taffy: &mut TaffyTree, element: &Element) -> Result<NodeId, T
                 .map(|child| element_to_node(taffy, child))
                 .collect::<Result<Vec<NodeId>, _>>()?;
 
-            taffy.new_with_children(container.layout.clone(), &children)
+            taffy.new_with_children(container.style.clone(), &children)
         }
     }
 }
@@ -364,6 +383,7 @@ fn render_element(
     node_id: NodeId,
     element: &Element,
     frame: &mut Frame,
+    parent_position: Position,
 ) -> Result<(), Error> {
     let layout = taffy.layout(node_id)?;
     // The `cast_possible_truncation` and `cast_sign_loss` lints are allowed here because
@@ -371,8 +391,8 @@ fn render_element(
     // so the truncation and sign loss are not a concern.
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let position = Position {
-        col: layout.location.x as u16,
-        row: layout.location.y as u16,
+        col: layout.location.x as u16 + parent_position.col,
+        row: layout.location.y as u16 + parent_position.row,
     };
 
     match element {
@@ -386,12 +406,8 @@ fn render_element(
 
             for (i, child) in container.children.iter().enumerate() {
                 let child_node = children[i];
-                render_element(taffy, child_node, child, frame)?;
+                render_element(taffy, child_node, child, frame, position)?;
             }
-
-            // TODO: should we be carrying cursor position through container?
-            // TODO: how do we know which container has focus to correctly take the cursor position?
-            frame.cursor_position = container.cursor_position;
         }
     }
     Ok(())

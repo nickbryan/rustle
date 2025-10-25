@@ -1,15 +1,15 @@
 use std::{ops::Deref, time::Duration};
 
 use rustle_state::{ReducerFn, Runtime, StateError, Store};
-use taffy::Style;
 use tokio::time;
 use tokio_stream::StreamExt;
 
 use crate::{
+    component::compositor,
     config::Config,
     error::Error,
     input::{Event, EventStream, Mode, Resolution, Resolver},
-    ui::{Canvas, Color, Component, Container, Element, TextSpan, Viewport},
+    ui::{Canvas, Viewport},
     Position,
 };
 
@@ -94,7 +94,7 @@ impl<C: Canvas> Editor<C> {
                     _ => (),
                 },
                 Ok(()) = state_rx.changed() => {
-                    viewport.render(state_rx.borrow().deref(), &RootComponent).map_err(Error::Ui)?;
+                    viewport.redraw(state_rx.borrow().deref(), compositor::render).map_err(Error::Ui)?;
                 }
                 else => return Err(StateError::ActorTerminated.into()),
             }
@@ -106,11 +106,11 @@ impl<C: Canvas> Editor<C> {
 
 /// The `State` struct represents the state of the editor.
 #[derive(Default, Clone, PartialEq)]
-struct State {
-    cursor_position: Position,
-    mode: Mode,
-    should_quit: bool,
-    buffer: String,
+pub(crate) struct State {
+    pub(crate) cursor_position: Position,
+    pub(crate) mode: Mode,
+    pub(crate) should_quit: bool,
+    pub(crate) buffer: String,
 }
 
 /// The `Action` enum represents the actions that can be dispatched to the store.
@@ -187,44 +187,4 @@ fn cursor_position_reducer(mut state: State, movement: Movement) -> State {
     }
 
     state
-}
-
-struct RootComponent;
-
-#[derive(Clone, PartialEq)]
-struct RootComponentProps {
-    mode: String,
-    cursor_position: Position,
-    buffer: String,
-}
-
-impl Component<&State> for RootComponent {
-    type Props = RootComponentProps;
-
-    fn select(&self, state: &State) -> Self::Props {
-        RootComponentProps {
-            mode: state.mode.to_string(),
-            cursor_position: state.cursor_position,
-            buffer: state.buffer.clone(),
-        }
-    }
-
-    fn render(&self, props: Self::Props) -> Element {
-        Element::Container(Box::new(Container {
-            layout: Style::default(),
-            children: vec![
-                Element::Span(TextSpan {
-                    background: Color::DarkGray,
-                    color: Color::Yellow,
-                    text: props.mode + " ",
-                }),
-                Element::Span(TextSpan {
-                    background: Color::DarkGray,
-                    color: Color::White,
-                    text: props.buffer,
-                }),
-            ],
-            cursor_position: props.cursor_position,
-        }))
-    }
 }
