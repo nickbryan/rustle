@@ -7,7 +7,12 @@ use std::{
 
 use serde::Deserialize;
 
-use crate::editor::{Action, Movement};
+/// The `Action` enum represents the actions that can be dispatched to the store.
+pub enum Action {
+    Cancel,
+    EnterMode(Mode),
+    Quit,
+}
 
 /// `Key` presses accepted by the editor.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -88,6 +93,7 @@ pub enum Mode {
     #[default]
     Normal,
     Insert,
+    Command,
 }
 
 impl Display for Mode {
@@ -95,6 +101,7 @@ impl Display for Mode {
         match self {
             Self::Insert => write!(f, "INSERT"),
             Self::Normal => write!(f, "NORMAL"),
+            Self::Command => write!(f, "COMMAND"),
         }
     }
 }
@@ -152,15 +159,22 @@ impl Resolver {
             };
 
             match map.get(&key.to_string()) {
-                Some(KeyBinding::Action(action)) => {
+                Some(KeyBinding::Action(action_string)) => {
                     let multiplier = if self.multiplier == 0 {
                         1
                     } else {
                         self.multiplier
                     };
-                    let result = parse_action(action, multiplier);
+
+                    let mut result = Resolution::NoMatch;
+
+                    if let Some(action) = parse_action(action_string, multiplier) {
+                        result = Resolution::Match(action);
+                    }
+
                     self.reset();
-                    return Resolution::Match(result.unwrap());
+
+                    return result;
                 }
                 Some(KeyBinding::Chord(next_map)) => {
                     current_bindings = Some(next_map);
@@ -199,13 +213,11 @@ fn parse_multiplier(current_value: u32, key: Key) -> Option<u32> {
 
 fn parse_action(action: &str, multiplier: u32) -> Option<Action> {
     match action {
-        "quit" => Some(Action::Quit),
+        "cancel" => Some(Action::Cancel),
+        "enter_command_mode" => Some(Action::EnterMode(Mode::Command)),
         "enter_insert_mode" => Some(Action::EnterMode(Mode::Insert)),
         "enter_normal_mode" => Some(Action::EnterMode(Mode::Normal)),
-        "move_cursor_next" => Some(Action::MoveCursor(Movement::Next(multiplier))),
-        "move_cursor_prev" => Some(Action::MoveCursor(Movement::Prev(multiplier))),
-        "move_line_next" => Some(Action::MoveCursor(Movement::LineNext(multiplier))),
-        "move_line_prev" => Some(Action::MoveCursor(Movement::LinePrev(multiplier))),
+        "quit" => Some(Action::Quit),
         _ => None,
     }
 }

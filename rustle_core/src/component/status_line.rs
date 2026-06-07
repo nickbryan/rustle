@@ -1,7 +1,7 @@
 use taffy::prelude::*;
 
 use crate::{
-    editor::State,
+    component::root::State,
     ui::{Color, Container, Element, TextSpan},
 };
 

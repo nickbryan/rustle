@@ -1,5 +1,5 @@
 mod buffer;
-mod buffer_view;
 mod command_line;
-pub mod compositor;
+pub mod root;
 mod status_line;
+mod window;

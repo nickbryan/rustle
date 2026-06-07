@@ -1,11 +1,26 @@
+use ropey::Rope;
 use taffy::{Dimension, Size, Style};
 
 use crate::{
-    editor::State,
+    component::root::State,
+    input::Action,
     ui::{Color, Container, Element, TextSpan},
 };
 
-pub(crate) fn render(state: &State) -> Element {
+// TODO: Implement a buffer component as it is document in the legacy version.
+// TODO: Rename buffer_view to window, access the buffer through the active window.
+
+#[derive(Default)]
+pub(crate) struct Buffer {
+    text: Rope,
+}
+
+#[allow(clippy::needless_pass_by_value)]
+pub(crate) fn reduce(buffer: Buffer, _action: Action) -> Buffer {
+    buffer
+}
+
+pub(crate) fn render(_state: &State) -> Element {
     Element::Container(Box::new(Container {
         style: Style {
             size: Size {
@@ -18,7 +33,7 @@ pub(crate) fn render(state: &State) -> Element {
         children: vec![Element::Span(TextSpan {
             background: Color::DarkGray,
             color: Color::White,
-            text: state.buffer.to_string(),
+            text: String::new(),
         })],
     }))
 }

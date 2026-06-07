@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+ropey = "1.6.1"
 rustle_state = { version = "0.1.0", path = "../rustle_state" }
 serde = { version = "1.0.228", features = ["derive"] }
 taffy = "0.9.1"

@@ -1,8 +1,7 @@
 use taffy::{Dimension, FlexDirection, JustifyContent, Size, Style};
 
 use crate::{
-    component::{buffer, status_line},
-    editor::State,
+    component::{buffer, root::State, status_line},
     ui::{Container, Element},
 };
 

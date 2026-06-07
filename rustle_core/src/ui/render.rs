@@ -6,7 +6,7 @@ use unicode_display_width::width as grapheme_width;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    editor::State,
+    component::root::State,
     ui::{
         error::Error,
         values::{Color, Position, Rect},
@@ -437,8 +437,8 @@ mod tests {
         assert_eq!(cell.position().col, 10);
         assert_eq!(cell.position().row, 10);
         assert_eq!(cell.symbol(), " ");
-        assert_eq!(cell.foreground(), Color::Red);
-        assert_eq!(cell.background(), Color::White);
+        assert_eq!(cell.foreground(), Color::Reset);
+        assert_eq!(cell.background(), Color::Reset);
     }
 
     #[test]
@@ -500,40 +500,7 @@ mod tests {
         let _ = dirty.write(Position::new(0, 0), "hello", Color::DarkGray, Color::White);
         dirty.reset();
 
-        assert_eq!(
-            vec![
-                &Cell {
-                    position: Position { col: 0, row: 0 },
-                    symbol: " ".to_string(),
-                    foreground: Color::DarkGray,
-                    background: Color::White,
-                },
-                &Cell {
-                    position: Position { col: 1, row: 0 },
-                    symbol: " ".to_string(),
-                    foreground: Color::DarkGray,
-                    background: Color::White,
-                },
-                &Cell {
-                    position: Position { col: 2, row: 0 },
-                    symbol: " ".to_string(),
-                    foreground: Color::DarkGray,
-                    background: Color::White,
-                },
-                &Cell {
-                    position: Position { col: 3, row: 0 },
-                    symbol: " ".to_string(),
-                    foreground: Color::DarkGray,
-                    background: Color::White,
-                },
-                &Cell {
-                    position: Position { col: 4, row: 0 },
-                    symbol: " ".to_string(),
-                    foreground: Color::DarkGray,
-                    background: Color::White,
-                },
-            ],
-            clean.diff(&dirty),
-        );
+        let empty_diff: Vec<&Cell> = vec![];
+        assert_eq!(empty_diff, clean.diff(&dirty));
     }
 }

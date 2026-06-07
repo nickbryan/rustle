@@ -5,12 +5,12 @@ use tokio::time;
 use tokio_stream::StreamExt;
 
 use crate::{
-    component::compositor,
+    component,
+    component::root::State,
     config::Config,
     error::Error,
-    input::{Event, EventStream, Mode, Resolution, Resolver},
+    input::{Action, Event, EventStream, Mode, Resolution, Resolver},
     ui::{Canvas, Viewport},
-    Position,
 };
 
 /// The `Editor` struct represents the core of the text editor application.
@@ -32,7 +32,7 @@ impl<C: Canvas> Editor<C> {
         Self {
             canvas,
             resolver: Resolver::new(config.bindings),
-            state: Store::new(root_reducer, State::default(), runtime),
+            state: Store::new(component::root::reduce, State::default(), runtime),
             idle_timeout: Duration::from_millis(config.editor.idle_timeout),
         }
     }
@@ -60,6 +60,7 @@ impl<C: Canvas> Editor<C> {
             };
 
             tokio::select! {
+                // TODO: This needs to work with both the tokio and wasm runtimes for web and terminal.
                 result = time::timeout(timeout, event_stream.next()) => match result {
                     Ok(Some(Event::KeyPressed(key))) => {
                         let mode = self.state.select(|state: &State| state.mode).await?;
@@ -77,8 +78,9 @@ impl<C: Canvas> Editor<C> {
                             }
                             Resolution::NoMatch => {
                                 if mode == Mode::Insert {
-                                    let text = self.resolver.drain_buffer();
-                                    self.state.dispatch(Action::InsertString(text)).await?;
+                                    // TODO: add these back when the Actions work.
+                                    // let text = self.resolver.drain_buffer();
+                                    // self.state.dispatch(Action::InsertString(text)).await?;
                                 }
                                 self.resolver.reset();
                                 pending_timeout = false;
@@ -86,15 +88,16 @@ impl<C: Canvas> Editor<C> {
                         }
                     }
                     Err(_) => { // Timeout.
-                        let text = self.resolver.drain_buffer();
-                        self.state.dispatch(Action::InsertString(text)).await?;
+                        // TODO: add these back when the Actions work.
+                        // let text = self.resolver.drain_buffer();
+                        // self.state.dispatch(Action::InsertString(text)).await?;
                         self.resolver.reset();
                         pending_timeout = false;
                     }
                     _ => (),
                 },
                 Ok(()) = state_rx.changed() => {
-                    viewport.redraw(state_rx.borrow().deref(), compositor::render).map_err(Error::Ui)?;
+                    viewport.redraw(state_rx.borrow().deref(), component::root::render).map_err(Error::Ui)?;
                 }
                 else => return Err(StateError::ActorTerminated.into()),
             }
@@ -102,89 +105,4 @@ impl<C: Canvas> Editor<C> {
 
         Ok(())
     }
-}
-
-/// The `State` struct represents the state of the editor.
-#[derive(Default, Clone, PartialEq)]
-pub(crate) struct State {
-    pub(crate) cursor_position: Position,
-    pub(crate) mode: Mode,
-    pub(crate) should_quit: bool,
-    pub(crate) buffer: String,
-}
-
-/// The `Action` enum represents the actions that can be dispatched to the store.
-pub enum Action {
-    EnterMode(Mode),
-    MoveCursor(Movement),
-    Quit,
-
-    InsertString(String),
-}
-
-#[derive(Clone, Copy)]
-pub enum Movement {
-    Next(u32),
-    Prev(u32),
-    LineNext(u32),
-    LinePrev(u32),
-}
-
-/// The `root_reducer` is the main reducer for the editor.
-/// It is responsible for handling all actions and updating the state.
-// The `needless_pass_by_value` lint is allowed here because the function signature is constrained
-// by the `Reducer` trait, which requires the `action` to be passed by value. This is a deliberate
-// design choice that simplifies ownership and is efficient for small, `Copy`-like actions.
-// Since our `Action` enum holds a `char`, which is a 4-byte primitive, the performance cost
-// of passing by value is negligible. For a more detailed rationale, see the comments in
-// the `Reducer` trait definition.
-#[allow(clippy::needless_pass_by_value)]
-fn root_reducer(mut state: State, action: Action) -> State {
-    match action {
-        Action::EnterMode(mode) => {
-            state.mode = mode;
-            state.buffer.clear();
-        }
-        Action::Quit => state.should_quit = true,
-        Action::MoveCursor(movement) => {
-            state = cursor_position_reducer(state, movement);
-        }
-
-        Action::InsertString(text) => {
-            state.buffer.push_str(&text);
-        }
-    }
-
-    state
-}
-
-fn cursor_position_reducer(mut state: State, movement: Movement) -> State {
-    match movement {
-        Movement::Next(chars) => {
-            state.cursor_position.col = state
-                .cursor_position
-                .col
-                .saturating_add(u16::try_from(chars).expect("temporary for testing"));
-        }
-        Movement::Prev(chars) => {
-            state.cursor_position.col = state
-                .cursor_position
-                .col
-                .saturating_sub(u16::try_from(chars).expect("temporary for testing"));
-        }
-        Movement::LineNext(lines) => {
-            state.cursor_position.row = state
-                .cursor_position
-                .row
-                .saturating_add(u16::try_from(lines).expect("temporary for testing"));
-        }
-        Movement::LinePrev(lines) => {
-            state.cursor_position.row = state
-                .cursor_position
-                .row
-                .saturating_sub(u16::try_from(lines).expect("temporary for testing"));
-        }
-    }
-
-    state
 }
